@@ -1,0 +1,1191 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Financieel Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #f2f1ed;
+  --card: #ffffff;
+  --border: #dedad2;
+  --accent: #1a1a2e;
+  --gold: #b8963e;
+  --muted: #8a8880;
+  --red: #c62828;
+  --green: #2e7d32;
+  --amber: #e65100;
+  --sidebar-w: 230px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+body { font-family: 'IBM Plex Sans', sans-serif; background: var(--bg); color: var(--accent); }
+
+/* ── SHELL ── */
+.shell { display: flex; min-height: 100vh; }
+
+/* ── SIDEBAR ── */
+.sidebar {
+  width: var(--sidebar-w); min-width: var(--sidebar-w);
+  background: var(--accent); color: #fff;
+  position: fixed; top: 0; left: 0; height: 100vh;
+  overflow-y: auto; z-index: 200;
+  display: flex; flex-direction: column;
+  transition: transform .3s cubic-bezier(.4,0,.2,1);
+}
+.sidebar-logo {
+  font-size: 13px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase;
+  color: #fff; padding: 24px 20px 20px;
+  border-bottom: 1px solid rgba(255,255,255,.08); flex-shrink: 0;
+}
+.sidebar-logo span { color: var(--gold); }
+.nav-section { padding: 12px 0 4px; }
+.nav-group-label {
+  font-size: 9px; font-weight: 700; letter-spacing: .2em; text-transform: uppercase;
+  color: rgba(255,255,255,.28); padding: 10px 20px 4px;
+}
+.nav-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 20px; font-size: 13px; color: rgba(255,255,255,.6);
+  cursor: pointer; border-left: 2px solid transparent; transition: all .15s;
+  text-decoration: none;
+}
+.nav-item:hover { color: #fff; background: rgba(255,255,255,.06); }
+.nav-item.active { color: #fff; border-left-color: var(--gold); background: rgba(255,255,255,.08); }
+.nav-item .nav-icon { font-size: 14px; width: 18px; text-align: center; flex-shrink: 0; }
+
+/* Sector selector in sidebar */
+.sector-wrap { padding: 16px 20px; border-top: 1px solid rgba(255,255,255,.08); margin-top: auto; }
+.sector-label { font-size: 9px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; color: rgba(255,255,255,.3); margin-bottom: 8px; }
+.sector-select {
+  width: 100%; background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.15);
+  color: #fff; padding: 8px 10px; font-size: 12px; font-family: 'IBM Plex Sans', sans-serif;
+  border-radius: 2px; cursor: pointer; outline: none; appearance: none;
+}
+.sector-select:focus { border-color: var(--gold); }
+.sector-select option { background: #1a1a2e; color: #fff; }
+
+/* ── MOBILE ── */
+.mobile-header {
+  display: none; position: fixed; top: 0; left: 0; right: 0; height: 52px;
+  background: var(--accent); z-index: 300; align-items: center; padding: 0 16px; gap: 12px;
+}
+.mobile-logo { font-size: 13px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: #fff; flex: 1; }
+.mobile-logo span { color: var(--gold); }
+.hamburger { background: none; border: none; cursor: pointer; padding: 4px; color: #fff; font-size: 20px; line-height: 1; }
+.sidebar-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 190; }
+.sidebar-overlay.open { display: block; }
+
+/* ── MAIN ── */
+.main { flex: 1; margin-left: var(--sidebar-w); padding: 36px 40px 60px; min-width: 0; }
+
+/* ── HEADER ── */
+.page-header {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  border-bottom: 2px solid var(--accent); padding-bottom: 16px; margin-bottom: 28px;
+  flex-wrap: wrap; gap: 12px;
+}
+.page-header h1 { font-size: 18px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+.meta-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.meta-pill {
+  font-family: 'IBM Plex Mono', monospace; font-size: 11px;
+  background: var(--accent); color: rgba(255,255,255,.7); padding: 4px 10px; border-radius: 2px;
+}
+.meta-pill b { color: var(--gold); font-weight: 600; }
+
+/* ── UPLOAD ── */
+.upload-area { display: flex; align-items: center; gap: 10px; margin-bottom: 28px; flex-wrap: wrap; }
+.upload-label {
+  display: inline-flex; align-items: center; gap: 8px; background: var(--accent); color: #fff;
+  padding: 9px 16px; font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
+  cursor: pointer; border-radius: 2px; transition: background .2s; flex-shrink: 0;
+}
+.upload-label:hover { background: #2c2c4a; }
+input[type="file"] { display: none; }
+#file-name { font-size: 11px; color: var(--muted); font-family: 'IBM Plex Mono', monospace; }
+.icon-btn {
+  display: none; align-items: center; gap: 6px; background: transparent;
+  border: 1.5px solid var(--border); color: var(--accent);
+  padding: 8px 14px; font-family: 'IBM Plex Sans', sans-serif;
+  font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
+  cursor: pointer; border-radius: 2px; transition: all .15s; flex-shrink: 0;
+}
+.icon-btn:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
+.icon-btn.visible { display: inline-flex; }
+.icon-btn.pdf-btn { border-color: #b71c1c; color: #b71c1c; }
+.icon-btn.pdf-btn:hover { background: #b71c1c; color: #fff; }
+.icon-btn.excel-btn { border-color: #2e7d32; color: #2e7d32; }
+.icon-btn.excel-btn:hover { background: #2e7d32; color: #fff; }
+
+/* ── SECTIONS ── */
+.section { display: none; }
+.section.active { display: block; }
+.section-title {
+  font-size: 10px; font-weight: 700; letter-spacing: .18em; text-transform: uppercase;
+  color: var(--muted); margin-bottom: 16px; padding-bottom: 8px; border-bottom: 1px solid var(--border);
+}
+
+/* ── RATING BANNER ── */
+.rating-banner {
+  display: none; background: var(--accent); border-radius: 4px;
+  padding: 24px 28px; margin-bottom: 24px; position: relative; overflow: hidden;
+  gap: 28px; flex-wrap: wrap; align-items: stretch;
+}
+.rating-banner.visible { display: flex; }
+.rating-banner::before {
+  content: ''; position: absolute; inset: 0; pointer-events: none;
+  background-image: radial-gradient(rgba(255,255,255,.03) 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+.rb-score-block { display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 100px; }
+.rb-number { font-family: 'IBM Plex Mono', monospace; font-size: 64px; font-weight: 600; line-height: 1; letter-spacing: -.04em; }
+.rb-number .denom { font-size: 24px; opacity: .3; font-weight: 400; }
+.rb-label { font-size: 10px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; margin-top: 5px; }
+.rb-divider { width: 1px; background: rgba(255,255,255,.1); align-self: stretch; flex-shrink: 0; }
+.rb-cats { flex: 1; display: grid; grid-template-columns: repeat(auto-fill, minmax(140px,1fr)); gap: 12px 16px; align-content: center; min-width: 200px; }
+.rb-cat { display: flex; flex-direction: column; gap: 4px; }
+.rb-cat-label { font-size: 9px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: rgba(255,255,255,.35); }
+.rb-cat-bar-wrap { display: flex; align-items: center; gap: 6px; }
+.rb-cat-bar-track { flex: 1; height: 3px; background: rgba(255,255,255,.1); border-radius: 2px; overflow: hidden; }
+.rb-cat-bar-fill { height: 100%; border-radius: 2px; transition: width .8s cubic-bezier(.4,0,.2,1); }
+.rb-cat-score { font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 600; color: rgba(255,255,255,.65); min-width: 24px; text-align: right; }
+.rb-verdict { display: flex; flex-direction: column; justify-content: center; max-width: 200px; border-left: 1px solid rgba(255,255,255,.08); padding-left: 22px; }
+.rb-verdict-title { font-size: 9px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: rgba(255,255,255,.28); margin-bottom: 5px; }
+.rb-verdict-text { font-size: 11px; color: rgba(255,255,255,.6); line-height: 1.6; font-weight: 300; }
+.tier-uitstekend .rb-number, .tier-uitstekend .rb-label { color: #81c784; }
+.tier-goed .rb-number, .tier-goed .rb-label { color: #a5d6a7; }
+.tier-matig .rb-number, .tier-matig .rb-label { color: #fff176; }
+.tier-zwak .rb-number, .tier-zwak .rb-label { color: #ffb74d; }
+.tier-slecht .rb-number, .tier-slecht .rb-label { color: #ef9a9a; }
+
+/* ── CONTEXT STRIP ── */
+.ctx-strip { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px,1fr)); gap: 8px; margin-bottom: 24px; }
+.ctx-card { background: var(--accent); padding: 12px 14px; border-radius: 3px; }
+.ctx-card-label { font-size: 9px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; color: rgba(255,255,255,.35); margin-bottom: 4px; }
+.ctx-card-value { font-family: 'IBM Plex Mono', monospace; font-size: 16px; font-weight: 600; color: #fff; }
+.ctx-card-value.gold { color: var(--gold); }
+
+/* ── RATIO CARDS ── */
+.ratio-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px,1fr)); gap: 14px; margin-bottom: 28px; }
+.ratio-card {
+  background: var(--card); border: 1px solid var(--border); border-top: 3px solid var(--accent);
+  border-radius: 3px; padding: 18px 16px 14px; transition: box-shadow .2s; position: relative;
+}
+.ratio-card:hover { box-shadow: 0 4px 18px rgba(0,0,0,.08); }
+.ratio-card-label { font-size: 10px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; }
+.ratio-value { font-family: 'IBM Plex Mono', monospace; font-size: 32px; font-weight: 600; color: var(--accent); letter-spacing: -.02em; line-height: 1; min-height: 38px; }
+.ratio-value.pct::after { content: '%'; font-size: 16px; opacity: .4; margin-left: 2px; }
+.ratio-value.eur { font-size: 22px; }
+.ratio-value.days::after { content: 'd'; font-size: 16px; opacity: .4; margin-left: 2px; }
+.ratio-value.x::after { content: '×'; font-size: 16px; opacity: .4; margin-left: 2px; }
+.ratio-value.nb { color: var(--muted); font-size: 18px; }
+
+/* ── GAUGE ── */
+.gauge-wrap { margin: 12px 0 4px; }
+.gauge-track { height: 6px; background: var(--border); border-radius: 3px; position: relative; overflow: visible; }
+.gauge-fill { height: 100%; border-radius: 3px; transition: width .7s cubic-bezier(.4,0,.2,1), background .4s; width: 0%; }
+.gauge-norm { position: absolute; top: -5px; width: 2px; height: 16px; background: var(--accent); opacity: .2; border-radius: 1px; }
+.gauge-labels { display: flex; justify-content: space-between; font-size: 9px; color: var(--muted); font-family: 'IBM Plex Mono', monospace; margin-top: 3px; }
+/* Sector benchmark marker */
+.gauge-sector { position: absolute; top: -5px; width: 2px; height: 16px; background: var(--gold); opacity: .7; border-radius: 1px; }
+
+/* ── INDICATOR ── */
+.indicator { display: flex; align-items: center; gap: 6px; margin: 7px 0 4px; min-height: 16px; }
+.ind-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.ind-label { font-size: 11px; font-weight: 600; }
+.lv-uitstekend .ind-dot { background: #1b5e20; } .lv-uitstekend .ind-label { color: #1b5e20; }
+.lv-goed .ind-dot { background: #2e7d32; } .lv-goed .ind-label { color: #2e7d32; }
+.lv-matig .ind-dot { background: #f9a825; } .lv-matig .ind-label { color: #f9a825; }
+.lv-zwak .ind-dot { background: #e65100; } .lv-zwak .ind-label { color: #e65100; }
+.lv-slecht .ind-dot { background: #c62828; } .lv-slecht .ind-label { color: #c62828; }
+.lv-nb .ind-dot { background: var(--muted); } .lv-nb .ind-label { color: var(--muted); }
+
+/* ── FORMULA BREAKDOWN ── */
+.ratio-norm { font-size: 11px; color: var(--muted); font-family: 'IBM Plex Mono', monospace; margin-top: 6px; }
+.formula-toggle {
+  display: inline-flex; align-items: center; gap: 5px; margin-top: 8px;
+  font-size: 10px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase;
+  color: var(--gold); cursor: pointer; background: none; border: none; padding: 0;
+  font-family: 'IBM Plex Sans', sans-serif;
+}
+.formula-toggle:hover { opacity: .75; }
+.formula-detail {
+  display: none; margin-top: 10px; padding: 10px 12px;
+  background: var(--bg); border-radius: 3px; border-left: 3px solid var(--gold);
+}
+.formula-detail.open { display: block; }
+.formula-text { font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: var(--accent); opacity: .7; line-height: 1.7; }
+.formula-values { margin-top: 6px; display: flex; flex-direction: column; gap: 2px; }
+.fv-row { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.fv-label { font-size: 10px; color: var(--muted); font-weight: 300; }
+.fv-val { font-family: 'IBM Plex Mono', monospace; font-size: 10px; font-weight: 600; color: var(--accent); }
+.formula-desc { font-size: 11px; color: var(--muted); line-height: 1.5; margin-top: 6px; font-weight: 300; padding-top: 6px; border-top: 1px solid var(--border); }
+
+/* Sector badge on card */
+.sector-benchmark-badge {
+  position: absolute; top: 10px; right: 12px;
+  font-size: 9px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
+  background: rgba(184,150,62,.12); color: var(--gold); padding: 2px 7px; border-radius: 2px;
+  display: none;
+}
+.sector-active .sector-benchmark-badge { display: block; }
+
+/* ── TOAST ── */
+#toast {
+  display: none; position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+  background: var(--accent); color: #fff; padding: 10px 20px;
+  border-radius: 3px; font-size: 13px; font-weight: 600; z-index: 999;
+  box-shadow: 0 4px 20px rgba(0,0,0,.2); white-space: nowrap;
+}
+
+/* ── EXCEL MODAL ── */
+.modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.55); z-index: 1000; align-items: center; justify-content: center; padding: 20px; }
+.modal-overlay.open { display: flex; }
+.modal-box { background: #fff; border-radius: 4px; width: 100%; max-width: 1100px; max-height: 88vh; display: flex; flex-direction: column; box-shadow: 0 24px 60px rgba(0,0,0,.25); overflow: hidden; }
+.modal-head { display: flex; align-items: center; justify-content: space-between; padding: 14px 20px; background: var(--accent); gap: 12px; flex-shrink: 0; }
+.modal-title { font-family: 'IBM Plex Mono', monospace; font-size: 13px; font-weight: 600; color: #fff; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.modal-close { background: transparent; border: 1.5px solid rgba(255,255,255,.25); color: #fff; width: 30px; height: 30px; border-radius: 2px; cursor: pointer; font-size: 14px; display: flex; align-items: center; justify-content: center; }
+.modal-close:hover { background: rgba(255,255,255,.1); }
+.modal-search { font-family: 'IBM Plex Mono', monospace; font-size: 12px; padding: 6px 12px; border: none; border-radius: 2px; background: rgba(255,255,255,.12); color: #fff; outline: none; width: 180px; }
+.modal-search::placeholder { color: rgba(255,255,255,.35); }
+.sheet-tabs { display: flex; border-bottom: 1px solid var(--border); background: var(--bg); overflow-x: auto; flex-shrink: 0; }
+.sheet-tab { padding: 8px 18px; font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); cursor: pointer; border-bottom: 2px solid transparent; white-space: nowrap; transition: all .15s; }
+.sheet-tab:hover { color: var(--accent); }
+.sheet-tab.active { color: var(--accent); border-bottom-color: var(--gold); }
+.modal-table-wrap { overflow: auto; flex: 1; }
+#modal-table { border-collapse: collapse; width: 100%; font-family: 'IBM Plex Mono', monospace; font-size: 12px; }
+#modal-table thead th { padding: 9px 14px; background: var(--accent); color: #fff; font-size: 10px; font-weight: 600; letter-spacing: .06em; position: sticky; top: 0; z-index: 2; border-right: 1px solid rgba(255,255,255,.08); white-space: nowrap; }
+#modal-table thead th:first-child { background: var(--gold); width: 44px; text-align: center; }
+#modal-table tbody tr { border-bottom: 1px solid var(--border); }
+#modal-table tbody tr:hover { background: #f7f6f2; }
+#modal-table tbody tr.row-hidden { display: none; }
+#modal-table tbody td { padding: 7px 14px; color: var(--accent); white-space: nowrap; max-width: 280px; overflow: hidden; text-overflow: ellipsis; border-right: 1px solid var(--border); }
+#modal-table tbody td:first-child { text-align: center; color: var(--muted); font-size: 10px; background: #fafaf7; }
+#modal-table tbody td.num { text-align: right; color: #1565c0; }
+.modal-footer { padding: 8px 20px; border-top: 1px solid var(--border); font-size: 11px; color: var(--muted); display: flex; justify-content: space-between; background: var(--bg); flex-shrink: 0; }
+
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.35} }
+.loading { animation: pulse 1s ease-in-out infinite; }
+
+/* ── MOBILE RESPONSIVE ── */
+@media (max-width: 768px) {
+  .sidebar { transform: translateX(-100%); }
+  .sidebar.open { transform: translateX(0); }
+  .mobile-header { display: flex; }
+  .main { margin-left: 0; padding: 68px 16px 40px; }
+  .ratio-grid { grid-template-columns: 1fr; }
+  .ctx-strip { grid-template-columns: repeat(2, 1fr); }
+  .rb-verdict { display: none; }
+  .rating-banner { padding: 18px 20px; gap: 16px; }
+  .rb-number { font-size: 48px; }
+  .page-header { flex-direction: column; }
+  .modal-box { max-height: 95vh; }
+  .modal-search { width: 120px; }
+  .rb-cats { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 480px) {
+  .ctx-strip { grid-template-columns: 1fr 1fr; }
+  .upload-area { flex-direction: column; align-items: flex-start; }
+}
+</style>
+</head>
+<body>
+
+<!-- Mobile header -->
+<div class="mobile-header">
+  <div class="mobile-logo">Fin<span>.</span>Dashboard</div>
+  <button class="hamburger" onclick="toggleSidebar()">☰</button>
+</div>
+<div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleSidebar()"></div>
+
+<div class="shell">
+
+<!-- SIDEBAR -->
+<nav class="sidebar" id="sidebar">
+  <div class="sidebar-logo">Fin<span>.</span>Dashboard</div>
+  <div class="nav-section">
+    <div class="nav-group-label">Overzicht</div>
+    <div class="nav-item active" onclick="showSection('overzicht',this)">
+      <span class="nav-icon">◈</span> Dashboard
+    </div>
+  </div>
+  <div class="nav-section">
+    <div class="nav-group-label">Analyse</div>
+    <div class="nav-item" onclick="showSection('liquiditeit',this)">
+      <span class="nav-icon">◇</span> Liquiditeit
+    </div>
+    <div class="nav-item" onclick="showSection('solvabiliteit',this)">
+      <span class="nav-icon">◇</span> Solvabiliteit
+    </div>
+    <div class="nav-item" onclick="showSection('rendabiliteit',this)">
+      <span class="nav-icon">◇</span> Rendabiliteit
+    </div>
+    <div class="nav-item" onclick="showSection('werkkapitaal',this)">
+      <span class="nav-icon">◇</span> Werkkapitaal &amp; Rotatie
+    </div>
+  </div>
+  <div class="sector-wrap">
+    <div class="sector-label">Sector benchmark</div>
+    <select class="sector-select" id="sector-select" onchange="onSectorChange(this.value)">
+      <option value="algemeen">Algemeen (NBB)</option>
+      <option value="handel">Groot- &amp; detailhandel</option>
+      <option value="productie">Productie &amp; industrie</option>
+      <option value="diensten">Dienstverlening</option>
+      <option value="bouw">Bouw &amp; vastgoed</option>
+      <option value="horeca">Horeca</option>
+      <option value="tech">Tech &amp; IT</option>
+    </select>
+    <div style="font-size:9px;color:rgba(255,255,255,.22);margin-top:6px;line-height:1.4">
+      Gouden marker = sectornorm.<br>Zwarte marker = algemene norm.
+    </div>
+  </div>
+</nav>
+
+<!-- MAIN -->
+<div class="main">
+  <div class="page-header">
+    <h1>Financieel Dashboard</h1>
+    <div class="meta-row">
+      <div class="meta-pill">Referentie <b id="meta-jaar">—</b></div>
+      <div class="meta-pill">Omzet <b id="meta-omzet">—</b></div>
+      <div class="meta-pill">Balanstotaal <b id="meta-balans">—</b></div>
+    </div>
+  </div>
+
+  <div class="upload-area">
+    <label class="upload-label" for="file">↑ Bestand laden</label>
+    <input type="file" id="file" accept=".xlsx,.xls,.csv">
+    <span id="file-name">Geen bestand geselecteerd</span>
+    <div id="entity-name-wrap" style="display:none;flex:1;min-width:0">
+      <div id="entity-name" style="font-size:20px;font-weight:700;letter-spacing:.04em;color:var(--accent);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">—</div>
+    </div>
+    <button id="btn-excel" class="icon-btn excel-btn" onclick="openExcelModal()">⊞ Toon Excel</button>
+    <button id="btn-pdf" class="icon-btn pdf-btn" onclick="exportPDF()">↓ Export PDF</button>
+  </div>
+
+  <!-- Excel Modal -->
+  <div id="excel-modal" class="modal-overlay" onclick="closeExcelModal(event)">
+    <div class="modal-box">
+      <div class="modal-head">
+        <span class="modal-title" id="modal-filename">—</span>
+        <input class="modal-search" id="modal-search" type="text" placeholder="Zoeken…" oninput="filterTable(this.value)">
+        <button class="modal-close" onclick="closeExcelModal()">✕</button>
+      </div>
+      <div class="sheet-tabs" id="sheet-tabs"></div>
+      <div class="modal-table-wrap"><table id="modal-table"></table></div>
+      <div class="modal-footer"><span id="modal-info">—</span><span id="modal-filter"></span></div>
+    </div>
+  </div>
+
+  <!-- ══ OVERZICHT ══ -->
+  <div id="sec-overzicht" class="section active">
+
+    <div id="rating-banner" class="rating-banner">
+      <div class="rb-score-block">
+        <div class="rb-number" id="rb-score">—<span class="denom">/10</span></div>
+        <div class="rb-label" id="rb-label">—</div>
+      </div>
+      <div class="rb-divider"></div>
+      <div class="rb-cats">
+        <div class="rb-cat"><div class="rb-cat-label">Liquiditeit</div><div class="rb-cat-bar-wrap"><div class="rb-cat-bar-track"><div class="rb-cat-bar-fill" id="rcf-liq"></div></div><div class="rb-cat-score" id="rcs-liq">—</div></div></div>
+        <div class="rb-cat"><div class="rb-cat-label">Solvabiliteit</div><div class="rb-cat-bar-wrap"><div class="rb-cat-bar-track"><div class="rb-cat-bar-fill" id="rcf-solv"></div></div><div class="rb-cat-score" id="rcs-solv">—</div></div></div>
+        <div class="rb-cat"><div class="rb-cat-label">Rendabiliteit</div><div class="rb-cat-bar-wrap"><div class="rb-cat-bar-track"><div class="rb-cat-bar-fill" id="rcf-rend"></div></div><div class="rb-cat-score" id="rcs-rend">—</div></div></div>
+        <div class="rb-cat"><div class="rb-cat-label">Werkkapitaal</div><div class="rb-cat-bar-wrap"><div class="rb-cat-bar-track"><div class="rb-cat-bar-fill" id="rcf-wk"></div></div><div class="rb-cat-score" id="rcs-wk">—</div></div></div>
+      </div>
+      <div class="rb-verdict"><div class="rb-verdict-title">Beoordeling</div><div class="rb-verdict-text" id="rb-verdict">—</div></div>
+    </div>
+
+    <div class="section-title">Absolute kerncijfers</div>
+    <div class="ctx-strip">
+      <div class="ctx-card"><div class="ctx-card-label">Omzet (70)</div><div class="ctx-card-value gold" id="ctx-omzet">—</div></div>
+      <div class="ctx-card"><div class="ctx-card-label">Balanstotaal (20/58)</div><div class="ctx-card-value gold" id="ctx-balans">—</div></div>
+      <div class="ctx-card"><div class="ctx-card-label">Eigen vermogen (10/15)</div><div class="ctx-card-value" id="ctx-eigen">—</div></div>
+      <div class="ctx-card"><div class="ctx-card-label">EBIT (9901)</div><div class="ctx-card-value" id="ctx-ebit">—</div></div>
+      <div class="ctx-card"><div class="ctx-card-label">EBITDA</div><div class="ctx-card-value" id="ctx-ebitda">—</div></div>
+      <div class="ctx-card"><div class="ctx-card-label">Nettowinst (9904)</div><div class="ctx-card-value" id="ctx-winst">—</div></div>
+    </div>
+
+    <div class="section-title">Alle kernratio's</div>
+    <div class="ratio-grid" id="grid-overzicht"></div>
+  </div>
+
+  <!-- ══ LIQUIDITEIT ══ -->
+  <div id="sec-liquiditeit" class="section">
+    <div class="section-title">Liquiditeit</div>
+    <div class="ratio-grid" id="grid-liq"></div>
+  </div>
+
+  <!-- ══ SOLVABILITEIT ══ -->
+  <div id="sec-solvabiliteit" class="section">
+    <div class="section-title">Solvabiliteit &amp; Schulden</div>
+    <div class="ratio-grid" id="grid-solv"></div>
+  </div>
+
+  <!-- ══ RENDABILITEIT ══ -->
+  <div id="sec-rendabiliteit" class="section">
+    <div class="section-title">Rendabiliteit</div>
+    <div class="ratio-grid" id="grid-rend"></div>
+  </div>
+
+  <!-- ══ WERKKAPITAAL ══ -->
+  <div id="sec-werkkapitaal" class="section">
+    <div class="section-title">Werkkapitaal &amp; Rotatie</div>
+    <div class="ratio-grid" id="grid-wk"></div>
+  </div>
+
+</div><!-- /main -->
+</div><!-- /shell -->
+
+<div id="toast"></div>
+
+<script>
+// ══ SECTOR BENCHMARKS ══════════════════════════════════════════════════════════
+// Each sector defines norms for: [liqR, liqE, solv, roe, rtv, schuldratio, kk, lk, omloop]
+// liqR=liquiditeit ruim, liqE=enge, solv=solvabiliteit%, roe=%, rtv=%, schuldratio (netto schuld/EBITDA x100), kk=dagen, lk=dagen, omloop=x
+const SECTORS = {
+  algemeen:  { label:'Algemeen (NBB)',           liqR:1.0,  liqE:0.7,  solv:25, roe:5,  schuldratio:65, kk:30, lk:30, omloop:6  },
+  handel:    { label:'Groot- & detailhandel',    liqR:1.1,  liqE:0.6,  solv:20, roe:6,  schuldratio:70, kk:20, lk:40, omloop:10 },
+  productie: { label:'Productie & industrie',    liqR:1.2,  liqE:0.8,  solv:30, roe:7,  schuldratio:60, kk:45, lk:45, omloop:6  },
+  diensten:  { label:'Dienstverlening',          liqR:0.9,  liqE:0.8,  solv:30, roe:8,  schuldratio:55, kk:35, lk:25, omloop:15 },
+  bouw:      { label:'Bouw & vastgoed',          liqR:1.1,  liqE:0.7,  solv:20, roe:5,  schuldratio:72, kk:50, lk:50, omloop:5  },
+  horeca:    { label:'Horeca',                   liqR:0.7,  liqE:0.5,  solv:15, roe:4,  schuldratio:75, kk:5,  lk:20, omloop:25 },
+  tech:      { label:'Tech & IT',                liqR:1.5,  liqE:1.2,  solv:40, roe:12, schuldratio:45, kk:40, lk:30, omloop:20 },
+};
+let currentSector = 'algemeen';
+
+// ══ RATIO DEFINITIONS ══════════════════════════════════════════════════════════
+// Defined once; referenced by sections
+// Each ratio: { id, label, valCls, normKey, min, max, higherBetter, thresholds(fn→sector), formula, desc, fvRows(fn→r) }
+function getRatios(r, sector) {
+  const S = SECTORS[sector];
+  return [
+    // ── LIQUIDITEIT ──
+    {
+      id:'liqR', label:'Liquiditeit — Ruime zin', valCls:null, normKey:'liqR', min:0, max:2.5, higherBetter:true,
+      thresholds: S => [S.liqR*1.6, S.liqR, S.liqR*.75, S.liqR*.5],
+      formula: '(Voorraden + Vorderingen + Geldmiddelen + Overlopend) ÷ Schulden KT',
+      codes: '(3 + 40/41 + 50/53 + 54/58 + 490/1) ÷ (42/48 + 492/3)',
+      desc: 'Meet of alle vlottende activa de kortetermijnschulden dekken. Sectorafhankelijk norm.',
+      fvRows: r => [
+        ['Voorraden (3)', r.voorraden],['Vorderingen (40/41)', r.vorderKT],
+        ['Geldbeleggingen (50/53)', r.geldbel],['Liquide middelen (54/58)', r.liquide],
+        ['Overlopend activa (490/1)', r.overlopA],['Schulden KT (42/48)', r.schKT],
+        ['Overlopend passiva (492/3)', r.overlopP],
+      ],
+      sections:['overzicht','liquiditeit'],
+    },
+    {
+      id:'liqE', label:'Liquiditeit — Enge zin', valCls:null, normKey:'liqE', min:0, max:2.5, higherBetter:true,
+      thresholds: S => [S.liqE*1.8, S.liqE, S.liqE*.7, S.liqE*.4],
+      formula: '(Vorderingen + Geldmiddelen) ÷ Schulden KT',
+      codes: '(40/41 + 50/53 + 54/58) ÷ 42/48',
+      desc: 'Strenger: voorraden en overlopende rekeningen weggelaten. Toont onmiddellijk inbare liquiditeit.',
+      fvRows: r => [
+        ['Vorderingen KT (40/41)', r.vorderKT],['Geldbeleggingen (50/53)', r.geldbel],
+        ['Liquide middelen (54/58)', r.liquide],['Schulden KT (42/48)', r.schKT],
+      ],
+      sections:['overzicht','liquiditeit'],
+    },
+    {
+      id:'nwk', label:'Nettobedrijfskapitaal', valCls:'eur', normKey:null, min:null, max:null, higherBetter:true,
+      thresholds: null,
+      formula: 'Vlottende activa − Schulden KT',
+      codes: '29/58 − 42/48',
+      desc: 'Absolute liquiditeitsbuffer. Positief = financiële marge. Negatief = betalingsrisico.',
+      fvRows: r => [['Vlottende activa (29/58)', r.vlottende],['Schulden KT (42/48)', r.schKT]],
+      sections:['overzicht','liquiditeit'],
+    },
+    {
+      id:'kas', label:'Nettokaspositie', valCls:'eur', normKey:null, min:null, max:null, higherBetter:true,
+      thresholds: null,
+      formula: '(Geldbeleggingen + Liquide middelen) − Financiële schulden KT',
+      codes: '(50/53 + 54/58) − 43',
+      desc: 'Meer cash dan financiële schulden bij banken = sterke kaspositie.',
+      fvRows: r => [['Geldbeleggingen (50/53)', r.geldbel],['Liquide middelen (54/58)', r.liquide],['Financiële schulden KT (43)', r.finSchKT]],
+      sections:['overzicht','liquiditeit'],
+    },
+    // ── SOLVABILITEIT ──
+    {
+      id:'solv', label:'Solvabiliteit', valCls:'pct', normKey:'solv', min:0, max:100, higherBetter:true,
+      thresholds: S => [S.solv*2, S.solv, S.solv*.6, S.solv*.25],
+      formula: 'Eigen vermogen ÷ Totaal passiva × 100',
+      codes: '10/15 ÷ 10/49 × 100',
+      desc: 'Aandeel eigen vermogen in het totaal passiva. Hogere waarde = meer financiële onafhankelijkheid.',
+      fvRows: r => [['Eigen vermogen (10/15)', r.eigenV],['Totaal passiva (10/49)', r.totPassiva]],
+      sections:['overzicht','solvabiliteit'],
+    },
+    {
+      id:'schuldratio', label:'Schuldratio', valCls:'pct', normKey:'schuldratio', min:0, max:100, higherBetter:false,
+      thresholds: S => [S.schuldratio*.4, S.schuldratio, S.schuldratio*1.5, S.schuldratio*2],
+      formula: 'Totale schulden ÷ Totale activa × 100',
+      codes: '17/49 ÷ 20/58 × 100',
+      desc: 'Deel van de activa gefinancierd met schulden. Lager = financieel gezonder.',
+      fvRows: r => [
+        ['Totale schulden (17/49)', r.totSchuld],
+        ['Totale activa (20/58)', r.totActiva],
+      ],
+      sections:['overzicht','solvabiliteit'],
+    },
+    // ── RENDABILITEIT ──
+    {
+      id:'roe', label:'Return on Equity (ROE)', valCls:'pct', normKey:'roe', min:0, max:30, higherBetter:true,
+      thresholds: S => [S.roe*2.5, S.roe, S.roe*.5, 0],
+      formula: 'Nettowinst ÷ Eigen vermogen × 100',
+      codes: '9904 ÷ 10/15 × 100',
+      desc: 'Rendement op het eigen vermogen na belasting. Toont vergoeding voor aandeelhouders.',
+      fvRows: r => [['Nettowinst (9904)', r.nettowinst],['Eigen vermogen (10/15)', r.eigenV]],
+      sections:['overzicht','rendabiliteit'],
+    },
+    // rtv removed per user request
+
+    // ── WERKKAPITAAL & ROTATIE ──
+    {
+      id:'kk', label:'Klantenkrediet (dagen)', valCls:'days', normKey:'kk', min:0, max:120, higherBetter:false,
+      thresholds: S => [S.kk*.5, S.kk, S.kk*1.5, S.kk*2],
+      formula: '40 ÷ (70 + 74 − 740 + 9146) × 365',
+      codes: 'code 40 ÷ (70 + 74 − 740 + 9146) × 365',
+      desc: 'Gemiddeld aantal dagen dat klanten nodig hebben om te betalen.',
+      fvRows: r => [
+        ['Handelsvorderingen (40)', r.c40],['Omzet (70)', r.omzet],
+        ['Andere opbr. (74)', r.c74],['Subsidies (740)', r.c740],
+        ['Geëndosseerde wissels (9146)', r.c9146],
+      ],
+      sections:['overzicht','werkkapitaal'],
+    },
+    {
+      id:'lk', label:'Leverancierskrediet (dagen)', valCls:'days', normKey:'lk', min:0, max:120, higherBetter:true,
+      thresholds: S => [S.lk*2, S.lk, S.lk*.5, S.lk*.25],
+      formula: '44 ÷ (600/8 + 61 + 9145) × 365',
+      codes: 'code 44 ÷ (600/8 + 61 + 9145) × 365',
+      desc: 'Hoe lang de onderneming haar leveranciers laat wachten. Meer dan klantenkrediet = positief voor cashflow.',
+      fvRows: r => [
+        ['Handelsschulden (44)', r.handschuld],['Aankopen (600/8)', r.c600],
+        ['Diensten (61)', r.c61],['Aankopen vorig jaar (9145)', r.c9145],
+      ],
+      sections:['overzicht','werkkapitaal'],
+    },
+    {
+      id:'omloop', label:'Omloopsnelheid voorraad', valCls:'x', normKey:'omloop', min:0, max:30, higherBetter:true,
+      thresholds: S => [S.omloop*2, S.omloop, S.omloop*.6, S.omloop*.3],
+      formula: '60 ÷ (34 + 30/31 + 36 + 35)',
+      codes: 'code 60 ÷ (34 + 30/31 + 36 + 35)',
+      desc: 'Hoe vaak de voorraad per jaar omgezet wordt. Laag = trage voorraadrotatie.',
+      fvRows: r => [
+        ['Aankopen handelsgoederen (60)', r.c60],['Bestellingen in uitvoering (34)', r.c34],
+        ['Handelsgoederen (30/31)', r.c3031],['Bijproducten (36)', r.c36],['Gereed product (35)', r.c35],
+      ],
+      sections:['overzicht','werkkapitaal'],
+    },
+  ];
+}
+
+// ══ STATE ══════════════════════════════════════════════════════════════════════
+let _ratioData = null;
+let _rawData = null;
+let _workbook = null;
+
+// ══ HELPERS ════════════════════════════════════════════════════════════════════
+function fmtEur(v) {
+  if (!isFinite(v) || isNaN(v)) return '—';
+  const a = Math.abs(v), s = v < 0 ? '-' : '';
+  if (a >= 1e9) return s + (a/1e9).toFixed(2) + ' Mrd';
+  if (a >= 1e6) return s + (a/1e6).toFixed(2) + ' M';
+  if (a >= 1e3) return s + (a/1e3).toFixed(1) + ' K';
+  return s + Math.round(a).toLocaleString('nl-BE') + ' €';
+}
+function fmtVal(v, cls) {
+  if (!isFinite(v) || isNaN(v)) return 'N/B';
+  switch(cls) {
+    case 'pct': return v.toFixed(1) + '%';
+    case 'eur': return fmtEur(v);
+    case 'days': return Math.round(v) + 'd';
+    case 'x': return v.toFixed(1) + '×';
+    default: return v.toFixed(2);
+  }
+}
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.style.display = 'block';
+  clearTimeout(t._t); t._t = setTimeout(() => t.style.display = 'none', 3500);
+}
+function showSection(id, el) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('sec-' + id).classList.add('active');
+  if (el) el.classList.add('active');
+  if (window.innerWidth <= 768) toggleSidebar(false);
+}
+function toggleSidebar(forceClose) {
+  const sb = document.getElementById('sidebar');
+  const ov = document.getElementById('sidebar-overlay');
+  const isOpen = sb.classList.contains('open');
+  if (forceClose === false || isOpen) {
+    sb.classList.remove('open'); ov.classList.remove('open');
+  } else {
+    sb.classList.add('open'); ov.classList.add('open');
+  }
+}
+
+// ══ SECTOR CHANGE ══
+function onSectorChange(sector) {
+  currentSector = sector;
+  if (_ratioData) renderAll(_ratioData);
+}
+
+// ══ CARD BUILDER ══════════════════════════════════════════════════════════════
+function buildCard(def, val, r, prefix) {
+  prefix = prefix || '';
+  const S = SECTORS[currentSector];
+  const sectorNorm = S[def.normKey] || null;
+  const genNorm = SECTORS['algemeen'][def.normKey] || null;
+  const isSpecialEur = def.thresholds === null; // NWK, KAS — no gauge
+
+  // Level
+  let level = 'nb', scoreVal = null;
+  if (isFinite(val) && !isNaN(val) && def.thresholds) {
+    const thr = def.thresholds(S);
+    let idx = 4;
+    if (def.higherBetter) {
+      if (val >= thr[0]) idx=0; else if (val >= thr[1]) idx=1;
+      else if (val >= thr[2]) idx=2; else if (val >= thr[3]) idx=3;
+    } else {
+      if (val <= thr[0]) idx=0; else if (val <= thr[1]) idx=1;
+      else if (val <= thr[2]) idx=2; else if (val <= thr[3]) idx=3;
+    }
+    const LVS = ['uitstekend','goed','matig','zwak','slecht'];
+    const SCORES = [10, 7.5, 5, 2.5, 0];
+    level = LVS[idx]; scoreVal = SCORES[idx];
+  } else if (isFinite(val) && isNaN(val) === false && def.thresholds === null) {
+    level = val >= 0 ? 'goed' : 'slecht';
+  }
+
+  const LEVEL_LABELS = {uitstekend:'Uitstekend',goed:'Goed',matig:'Matig',zwak:'Zwak',slecht:'Slecht',nb:'Niet beschikbaar'};
+
+  // Value display
+  let dispVal = 'N/B', valClass = 'ratio-value nb';
+  if (isFinite(val) && !isNaN(val)) {
+    switch(def.valCls) {
+      case 'pct': dispVal = val.toFixed(1); valClass = 'ratio-value pct'; break;
+      case 'eur': dispVal = fmtEur(val); valClass = 'ratio-value eur'; break;
+      case 'days': dispVal = Math.round(val).toString(); valClass = 'ratio-value days'; break;
+      case 'x': dispVal = val.toFixed(1); valClass = 'ratio-value x'; break;
+      default: dispVal = val.toFixed(2); valClass = 'ratio-value';
+    }
+  }
+
+  // Gauge
+  let gaugeHtml = '';
+  if (!isSpecialEur && def.normKey) {
+    const mn = def.min, mx = def.max;
+    const fillPct = isFinite(val) ? Math.max(0, Math.min(100, (val-mn)/(mx-mn)*100)) : 0;
+    const normPct = genNorm !== null ? Math.max(0, Math.min(100, (genNorm-mn)/(mx-mn)*100)) : null;
+    const sectPct = sectorNorm !== null ? Math.max(0, Math.min(100, (sectorNorm-mn)/(mx-mn)*100)) : null;
+    // Color
+    let fillColor = '#c62828';
+    if (isFinite(val) && def.thresholds) {
+      const thr = def.thresholds(S);
+      if (def.higherBetter) {
+        if (val >= thr[0]) fillColor = '#1b5e20';
+        else if (val >= thr[1]) fillColor = '#2e7d32';
+        else if (val >= thr[2]) fillColor = '#f9a825';
+        else if (val >= thr[3]) fillColor = '#e65100';
+      } else {
+        if (val <= thr[0]) fillColor = '#1b5e20';
+        else if (val <= thr[1]) fillColor = '#2e7d32';
+        else if (val <= thr[2]) fillColor = '#f9a825';
+        else if (val <= thr[3]) fillColor = '#e65100';
+      }
+    }
+    const normMarker = normPct !== null ? `<div class="gauge-norm" style="left:${normPct}%"></div>` : '';
+    const sectMarker = sectPct !== null && currentSector !== 'algemeen' ? `<div class="gauge-sector" style="left:${sectPct}%"></div>` : '';
+    const lMin = def.valCls === 'pct' ? mn+'%' : def.valCls === 'days' ? mn+'d' : def.valCls === 'x' ? mn+'×' : mn;
+    const lMax = def.valCls === 'pct' ? mx+'%' : def.valCls === 'days' ? mx+'d' : def.valCls === 'x' ? mx+'×' : mx;
+    const normLabel = sectorNorm !== null ? fmtVal(sectorNorm, def.valCls) : '—';
+    gaugeHtml = `
+      <div class="gauge-wrap">
+        <div class="gauge-track">
+          <div class="gauge-fill" style="width:${fillPct}%;background:${fillColor}"></div>
+          ${normMarker}${sectMarker}
+        </div>
+        <div class="gauge-labels"><span>${lMin}</span><span>Norm ${normLabel}</span><span>${lMax}</span></div>
+      </div>`;
+  }
+
+  // Indicator
+  const indHtml = `<div class="indicator lv-${level}"><span class="ind-dot"></span><span class="ind-label">${LEVEL_LABELS[level]}</span></div>`;
+
+  // Norm text
+  let normText = '';
+  if (def.normKey && sectorNorm !== null) {
+    const dir = def.higherBetter ? '>' : '<';
+    normText = `<div class="ratio-norm">Norm (${S.label}): ${dir} ${fmtVal(sectorNorm, def.valCls)}</div>`;
+  }
+
+  // Formula values rows
+  const fvRows = def.fvRows(r);
+  const fvHtml = fvRows.map(([lbl,v]) =>
+    `<div class="fv-row"><span class="fv-label">${lbl}</span><span class="fv-val">${isFinite(v) && !isNaN(v) ? (typeof v === 'number' && Math.abs(v) >= 1000 ? v.toLocaleString('nl-BE', {maximumFractionDigits:0}) : v.toFixed(2)) : '—'}</span></div>`
+  ).join('');
+
+  const cardId = 'card-' + prefix + def.id;
+  const sectorBadge = ''; // removed - overlaps with ratio names
+
+  return `
+    <div class="ratio-card" id="${cardId}">
+      ${sectorBadge}
+      <div class="ratio-card-label">${def.label}</div>
+      <div class="${valClass}">${dispVal}</div>
+      ${gaugeHtml}
+      ${indHtml}
+      ${normText}
+      <button class="formula-toggle" onclick="toggleFormula('fdet-${prefix}${def.id}', this)">
+        <span>▶</span> Formule &amp; cijfers
+      </button>
+      <div class="formula-detail" id="fdet-${prefix}${def.id}">
+        <div class="formula-text">${def.formula}</div>
+        <div class="formula-text" style="opacity:.4;font-size:9px;margin-top:2px">${def.codes}</div>
+        <div class="formula-values">${fvHtml}</div>
+        <div class="formula-desc">${def.desc}</div>
+      </div>
+    </div>`;
+}
+
+function toggleFormula(id, btn) {
+  const el = document.getElementById(id);
+  el.classList.toggle('open');
+  btn.querySelector('span').textContent = el.classList.contains('open') ? '▼' : '▶';
+}
+
+// ══ RENDER ALL ═════════════════════════════════════════════════════════════════
+function renderAll(r) {
+  _ratioData = r;
+  const defs = getRatios(r, currentSector);
+
+  // Compute values
+  const vals = computeValues(r);
+
+  // Render grids
+  const grids = { overzicht:[], liquiditeit:[], solvabiliteit:[], rendabiliteit:[], werkkapitaal:[] };
+  defs.forEach(def => {
+    const v = vals[def.id];
+    def.sections.forEach((sec, si) => {
+      const prefix = sec + '_';
+      const card = buildCard(def, v, r, prefix);
+      grids[sec].push(card);
+    });
+  });
+  for (const [sec, cards] of Object.entries(grids)) {
+    const el = document.getElementById('grid-' + (sec === 'solvabiliteit' ? 'solv' : sec === 'rendabiliteit' ? 'rend' : sec === 'werkkapitaal' ? 'wk' : sec === 'liquiditeit' ? 'liq' : 'overzicht'));
+    if (el) el.innerHTML = cards.join('');
+  }
+
+  // Rating
+  renderRating(defs, vals);
+
+  // Store for PDF
+  window._pdfData = { r, vals, defs, sector: currentSector };
+}
+
+function computeValues(r) {
+  const S = SECTORS[currentSector];
+  const schKTtot = r.schKT + r.overlopP;
+  const knoemer = r.omzet + r.c74 - r.c740 + r.c9146;
+  const lnoemer = r.c600 + r.c61 + r.c9145;
+  const vorrHand = r.c34 + r.c3031 + r.c36 + r.c35;
+
+  return {
+    liqR: schKTtot !== 0 ? (r.voorraden + r.vorderKT + r.geldbel + r.liquide + r.overlopA) / schKTtot : NaN,
+    liqE: r.schKT !== 0 ? (r.vorderKT + r.geldbel + r.liquide) / r.schKT : NaN,
+    nwk:  r.vlottende - r.schKT,
+    kas:  (r.geldbel + r.liquide) - r.finSchKT,
+    solv: r.totPassiva !== 0 ? r.eigenV / r.totPassiva * 100 : NaN,
+    schuldratio: r.totActiva !== 0 ? r.totSchuld / r.totActiva * 100 : NaN,
+    roe:  r.eigenV !== 0 ? r.nettowinst / r.eigenV * 100 : NaN,
+
+    kk:   knoemer !== 0 ? r.c40 / knoemer * 365 : NaN,
+    lk:   lnoemer !== 0 ? r.handschuld / lnoemer * 365 : NaN,
+    omloop: vorrHand !== 0 ? r.c60 / vorrHand : NaN,
+  };
+}
+
+// ══ RATING ═════════════════════════════════════════════════════════════════════
+function renderRating(defs, vals) {
+  function rScore(def, val) {
+    if (!isFinite(val) || isNaN(val) || !def.thresholds) return null;
+    const S = SECTORS[currentSector];
+    const thr = def.thresholds(S);
+    const scores = [10, 7.5, 5, 2.5, 0];
+    if (def.higherBetter) {
+      if (val >= thr[0]) return 10; if (val >= thr[1]) return 7.5;
+      if (val >= thr[2]) return 5;  if (val >= thr[3]) return 2.5; return 0;
+    } else {
+      if (val <= thr[0]) return 10; if (val <= thr[1]) return 7.5;
+      if (val <= thr[2]) return 5;  if (val <= thr[3]) return 2.5; return 0;
+    }
+  }
+  function catAvg(ids) {
+    const sc = ids.map(id => rScore(defs.find(d=>d.id===id), vals[id])).filter(s=>s!==null);
+    return sc.length ? sc.reduce((a,b)=>a+b,0)/sc.length : null;
+  }
+
+  const sLiq  = catAvg(['liqR','liqE']);
+  const sSolv = catAvg(['solv','schuldratio']);
+  const sRend = catAvg(['roe']);
+  const sWk   = catAvg(['kk','lk','omloop']);
+
+  const cats = [['liq',sLiq,.25],['solv',sSolv,.25],['rend',sRend,.3],['wk',sWk,.2]];
+  let tw=0, ts=0;
+  cats.forEach(([,sc,w]) => { if(sc!==null){ts+=sc*w;tw+=w;} });
+  const final = tw>0 ? ts/tw : null;
+
+  cats.forEach(([id,sc]) => {
+    const f=document.getElementById('rcf-'+id), s=document.getElementById('rcs-'+id);
+    if(!f||!s) return;
+    if(sc===null){f.style.width='0%';s.textContent='N/B';return;}
+    const col=sc>=7.5?'#81c784':sc>=5?'#fff176':sc>=2.5?'#ffb74d':'#ef9a9a';
+    f.style.width=(sc/10*100)+'%'; f.style.background=col; s.textContent=sc.toFixed(1);
+  });
+
+  const banner = document.getElementById('rating-banner');
+  banner.className = 'rating-banner visible';
+  const tiers = [{t:'uitstekend',min:8,label:'Uitstekend',text:'Sterke financiële gezondheid op alle domeinen.'},
+    {t:'goed',min:6.5,label:'Goed',text:'Solide positie, beperkte verbeterpunten.'},
+    {t:'matig',min:4.5,label:'Matig',text:'Voldoende, maar bijsturing aanbevolen.'},
+    {t:'zwak',min:3,label:'Zwak',text:'Meerdere ratio\'s ondermaats. Actie vereist.'},
+    {t:'slecht',min:0,label:'Kritisch',text:'Ernstige kwetsbaarheid. Dringende maatregelen.'}];
+  const tier = final !== null ? tiers.find(t=>final>=t.min) || tiers[4] : null;
+
+  document.getElementById('rb-score').innerHTML = final!==null ? final.toFixed(1)+'<span class="denom">/10</span>' : '—<span class="denom">/10</span>';
+  document.getElementById('rb-label').textContent = tier ? tier.label : 'Onvoldoende data';
+  document.getElementById('rb-verdict').textContent = tier ? tier.text : 'Laad een bestand.';
+  if (tier) banner.classList.add('tier-'+tier.t);
+}
+
+// ══ FILE UPLOAD ═══════════════════════════════════════════════════════════════
+document.getElementById('file').addEventListener('change', function(e) {
+  const file = e.target.files[0]; if (!file) return;
+  if (!file.name.match(/\.(xlsx|xls|csv)$/i)) { showToast('Gebruik .xlsx, .xls of .csv'); e.target.value=''; return; }
+  document.getElementById('file-name').textContent = file.name;
+  const reader = new FileReader();
+  reader.onload = function(evt) {
+    try {
+      const wb = XLSX.read(new Uint8Array(evt.target.result), {type:'array'});
+      _workbook = wb;
+      buildExcelModal(wb, file.name);
+      const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {header:1});
+      const {v, jaar, entityName} = parseRows(rows);
+      document.getElementById('meta-jaar').textContent = jaar || '—';
+      if (entityName) {
+        document.getElementById('entity-name').textContent = entityName;
+        document.getElementById('entity-name-wrap').style.display = 'block';
+      } else {
+        document.getElementById('entity-name-wrap').style.display = 'none';
+      }
+      const r = extractVars(v);
+      document.getElementById('meta-omzet').textContent = fmtEur(r.omzet);
+      document.getElementById('meta-balans').textContent = fmtEur(r.totActiva);
+      document.getElementById('ctx-omzet').textContent = fmtEur(r.omzet);
+      document.getElementById('ctx-balans').textContent = fmtEur(r.totActiva);
+      document.getElementById('ctx-eigen').textContent = fmtEur(r.eigenV);
+      document.getElementById('ctx-ebit').textContent = fmtEur(r.ebit);
+      document.getElementById('ctx-ebitda').textContent = fmtEur(r.ebitda);
+      document.getElementById('ctx-winst').textContent = fmtEur(r.nettowinst);
+      renderAll(r);
+      document.getElementById('btn-excel').classList.add('visible');
+      document.getElementById('btn-pdf').classList.add('visible');
+    } catch(err) { showToast('Fout bij inlezen: '+err.message); console.error(err); }
+  };
+  reader.readAsArrayBuffer(file);
+});
+
+function parseRows(rows) {
+  const v = {}; let refNr = null; let entityName = null;
+  const refLabels = ['reference number','referentienummer','referentie','ref nr','ref. nr','filenumber','dossiernummer','dossier nr','filing number'];
+  const entityLabels = ['entity name','onderneming','company name','naam','vennootschap','bedrijfsnaam','denomination'];
+  rows.forEach(r => {
+    if (!r[0]) return;
+    const cel0 = String(r[0]).trim();
+    const lower = cel0.toLowerCase();
+    // Detect entity name
+    if (!entityName && entityLabels.some(l => lower.includes(l))) {
+      let raw = r[1]!==undefined&&r[1]!=='' ? String(r[1]).replace(/"/g,'').trim()
+              : cel0.includes(',') ? cel0.split(',').slice(1).join(',').replace(/"/g,'').trim() : null;
+      if (raw && isNaN(Number(raw))) { entityName = raw; return; }
+    }
+    // Detect reference number
+    if (!refNr && refLabels.some(l => lower.includes(l))) {
+      let raw = r[1]!==undefined&&r[1]!=='' ? String(r[1]).replace(/"/g,'').trim()
+              : cel0.includes(',') ? cel0.split(',').slice(1).join(',').replace(/"/g,'').trim() : null;
+      if (raw) { refNr = raw; return; }
+    }
+    let code, value;
+    if (cel0.includes(',')) { const p=cel0.split(','); code=p[0].trim(); value=Number(p[1].replace(/"/g,'')); }
+    else { code=cel0; value=Number(r[1]); }
+    if (code) v[code] = value;
+  });
+  return {v, jaar: refNr, entityName};
+}
+
+function g(v, c) { return v[c] ?? 0; }
+
+function extractVars(v) {
+  const omzet=g(v,'70'), c74=g(v,'74'), c740=g(v,'740');
+  const c60=g(v,'60'), c61=g(v,'61');
+  const c600=g(v,'600/8');
+  const totActiva=g(v,'20/58'), totPassiva=g(v,'10/49')||totActiva;
+  const eigenV=g(v,'10/15'), schLT=g(v,'170/4')||g(v,'17');
+  const vlottende=g(v,'29/58'), voorraden=g(v,'3');
+  const schKT=g(v,'42/48'), overlopP=g(v,'492/3');
+  const ebit=g(v,'9901'), nettowinst=g(v,'9904');
+  const c630=g(v,'630'), c631=g(v,'631/4'), c635=g(v,'635/8');
+  const afs=c630+c631+c635;
+  const ebitda=ebit+afs;
+  const vorderKT=g(v,'40/41'), c40=g(v,'40');
+  const geldbel=g(v,'50/53'), liquide=g(v,'54/58'), overlopA=g(v,'490/1');
+  const finSchKT=g(v,'43');
+  const c9146=g(v,'9146'), c9145=g(v,'9145');
+  const handschuld=g(v,'44');
+  const c34=g(v,'34'), c3031=g(v,'30/31'), c36=g(v,'36'), c35=g(v,'35');
+  return {
+    omzet,c74,c740,c60,c61,c600,totActiva,totPassiva,eigenV,schLT,
+    vlottende,voorraden,schKT,overlopP,ebit,afs,ebitda,nettowinst,
+    vorderKT,c40,geldbel,liquide,overlopA,finSchKT,c9146,c9145,
+    handschuld,c34,c3031,c36,c35,
+    totSchuld: (g(v,'17/49') || (g(v,'10/49') - g(v,'10/15')))
+  };
+}
+
+// ══ EXCEL MODAL ════════════════════════════════════════════════════════════════
+function buildExcelModal(wb, filename) {
+  _workbook = wb;
+  document.getElementById('modal-filename').textContent = filename;
+  const tabs = document.getElementById('sheet-tabs'); tabs.innerHTML = '';
+  wb.SheetNames.forEach((name,i) => {
+    const tab = document.createElement('div');
+    tab.className = 'sheet-tab' + (i===0?' active':'');
+    tab.textContent = name; tab.onclick = () => { showSheet(i); document.querySelectorAll('.sheet-tab').forEach((t,j)=>t.classList.toggle('active',j===i)); };
+    tabs.appendChild(tab);
+  });
+  showSheet(0);
+}
+function showSheet(idx) {
+  const sheet = _workbook.Sheets[_workbook.SheetNames[idx]];
+  const rows = XLSX.utils.sheet_to_json(sheet, {header:1, defval:''});
+  const colCount = rows.length ? Math.max(...rows.map(r=>r.length)) : 0;
+  let thead = '<thead><tr><th>#</th>';
+  for (let c=0;c<colCount;c++) thead += `<th>${colLet(c)}</th>`;
+  thead += '</tr></thead>';
+  let tbody = '<tbody>';
+  rows.forEach((row,ri) => {
+    tbody += `<tr><td>${ri+1}</td>`;
+    for (let c=0;c<colCount;c++) {
+      const val = row[c]!==undefined?row[c]:'';
+      const isN = typeof val==='number';
+      tbody += `<td${isN?' class="num"':''}>${isN ? val.toLocaleString('nl-BE',{maximumFractionDigits:2}) : escH(String(val))}</td>`;
+    }
+    tbody += '</tr>';
+  });
+  tbody += '</tbody>';
+  document.getElementById('modal-table').innerHTML = thead+tbody;
+  document.getElementById('modal-info').textContent = `${rows.length} rijen · ${colCount} kolommen`;
+  document.getElementById('modal-filter').textContent = '';
+  document.getElementById('modal-search').value = '';
+}
+function filterTable(q) {
+  const needle = q.toLowerCase().trim(); let vis=0;
+  document.querySelectorAll('#modal-table tbody tr').forEach(tr => {
+    const show = !needle || tr.textContent.toLowerCase().includes(needle);
+    tr.classList.toggle('row-hidden', !show); if(show) vis++;
+  });
+  document.getElementById('modal-filter').textContent = needle ? `${vis} resultaten` : '';
+}
+function colLet(n) { let s=''; n++; while(n>0){s=String.fromCharCode(64+(n%26||26))+s;n=Math.floor((n-1)/26);} return s; }
+function escH(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function openExcelModal() { document.getElementById('excel-modal').classList.add('open'); document.body.style.overflow='hidden'; }
+function closeExcelModal(e) { if(e&&e.target!==document.getElementById('excel-modal'))return; document.getElementById('excel-modal').classList.remove('open'); document.body.style.overflow=''; }
+document.addEventListener('keydown', e => { if(e.key==='Escape'){document.getElementById('excel-modal').classList.remove('open');document.body.style.overflow='';} });
+
+// ══ PDF EXPORT ══════════════════════════════════════════════════════════════════
+function exportPDF() {
+  if (!window._pdfData) { showToast('Laad eerst een bestand.'); return; }
+  const {r, vals, defs} = window._pdfData;
+  const {jsPDF} = window.jspdf;
+  const doc = new jsPDF({orientation:'portrait', unit:'mm', format:'a4'});
+  const W=210, M=16, CW=W-2*M;
+  const jaar = document.getElementById('meta-jaar').textContent;
+  const fname = document.getElementById('file-name').textContent.replace(/\.[^.]+$/,'');
+  const S = SECTORS[currentSector];
+
+  function rgb(arr){return arr;}
+  function setF(c){doc.setFillColor(c[0],c[1],c[2]);}
+  function setD(c){doc.setDrawColor(c[0],c[1],c[2]);}
+  function setT(c){doc.setTextColor(c[0],c[1],c[2]);}
+  function B(s=10){doc.setFont('helvetica','bold');doc.setFontSize(s);}
+  function N(s=10){doc.setFont('helvetica','normal');doc.setFontSize(s);}
+
+  const ACC=[26,26,46], GOLD=[184,150,62], WHITE=[255,255,255], BG=[242,241,237];
+  const GREEN=[46,125,50], AMBER=[230,81,0], RED=[198,40,40], MUT=[138,136,128];
+  let y=0;
+
+  // ── COVER ──
+  setF(ACC); doc.rect(0,0,W,45,'F');
+  B(22); setT(WHITE); doc.text('Financieel Rapport', M, 17);
+  const coverEntity = (document.getElementById('entity-name') && document.getElementById('entity-name').textContent !== '—')
+    ? document.getElementById('entity-name').textContent : fname;
+  N(11); setT(GOLD); doc.text(coverEntity, M, 25);
+  N(9); setT([180,180,180]);
+  doc.text('Referentie: '+jaar, M, 33);
+  doc.text('Sector: '+S.label, M, 39);
+  doc.text('Datum: '+new Date().toLocaleDateString('nl-BE'), W-M, 39, {align:'right'});
+  y=53;
+
+  // ── SCORE BANNER ──
+  setF(ACC); doc.roundedRect(M, y, CW, 26, 2, 2, 'F');
+  const final = vals.liqR!==undefined ? (() => {
+    let tw=0,ts=0;
+    [['liqR',1],['liqE',1],['solv',1],['schuldratio',1],['roe',1.2],['kk',.8],['lk',.8],['omloop',.8]].forEach(([id,w])=>{
+      const def=defs.find(d=>d.id===id); if(!def||!def.thresholds)return;
+      const v=vals[id]; if(!isFinite(v)||isNaN(v))return;
+      const thr=def.thresholds(S); const scores=[10,7.5,5,2.5,0];
+      let idx=4;
+      if(def.higherBetter){if(v>=thr[0])idx=0;else if(v>=thr[1])idx=1;else if(v>=thr[2])idx=2;else if(v>=thr[3])idx=3;}
+      else{if(v<=thr[0])idx=0;else if(v<=thr[1])idx=1;else if(v<=thr[2])idx=2;else if(v<=thr[3])idx=3;}
+      ts+=scores[idx]*w; tw+=w;
+    });
+    return tw>0?ts/tw:null;
+  })() : null;
+
+  const tierColor = final===null?MUT:final>=8?[130,194,130]:final>=6.5?[165,214,167]:final>=4.5?[240,220,100]:final>=3?AMBER:RED;
+  B(26); setT(tierColor); doc.text(final!==null?final.toFixed(1)+'/10':'N/B', M+12, y+17);
+  N(8); setT([160,160,160]); doc.text('FINANCIËLE SCORE', M+12, y+23);
+  B(9); setT(tierColor);
+  const tierLabel = final===null?'—':final>=8?'Uitstekend':final>=6.5?'Goed':final>=4.5?'Matig':final>=3?'Zwak':'Kritisch';
+  doc.text(tierLabel, M+48, y+17);
+  N(8); setT([160,160,160]); doc.text('Sector: '+S.label, M+48, y+23);
+  y+=34;
+
+  // ── KERNCIJFERS ──
+  B(9); setT(MUT); doc.text('ABSOLUTE KERNCIJFERS', M, y); y+=4;
+  setF(BG); doc.rect(M,y,CW,.3,'F'); y+=4;
+  const kc=[['Omzet',fmtEur(r.omzet)],['Balanstotaal',fmtEur(r.totActiva)],['Eigen vermogen',fmtEur(r.eigenV)],['EBIT',fmtEur(r.ebit)],['EBITDA',fmtEur(r.ebitda)],['Nettowinst',fmtEur(r.nettowinst)]];
+  const cw2=CW/3;
+  for(let i=0;i<kc.length;i++){
+    const col=i%3, row=Math.floor(i/3), cx=M+col*cw2, cy=y+row*13;
+    setF(ACC); doc.roundedRect(cx,cy,cw2-3,11,1,1,'F');
+    N(7); setT([120,120,120]); doc.text(kc[i][0], cx+4, cy+5);
+    B(9); setT(GOLD); doc.text(kc[i][1], cx+4, cy+10);
+  }
+  y+=2*13+8;
+
+  // ── RATIO TABLE ──
+  function levelInfo(def, val) {
+    if (!def.thresholds || !isFinite(val) || isNaN(val)) return {lbl:'N/B',col:MUT};
+    const thr=def.thresholds(S);
+    let idx=4;
+    if(def.higherBetter){if(val>=thr[0])idx=0;else if(val>=thr[1])idx=1;else if(val>=thr[2])idx=2;else if(val>=thr[3])idx=3;}
+    else{if(val<=thr[0])idx=0;else if(val<=thr[1])idx=1;else if(val<=thr[2])idx=2;else if(val<=thr[3])idx=3;}
+    const lbls=['Uitstekend','Goed','Matig','Zwak','Slecht'];
+    const cols=[GREEN,GREEN,[180,140,0],AMBER,RED];
+    return {lbl:lbls[idx],col:cols[idx]};
+  }
+
+  function ratioTable(title, ratioIds) {
+    if (y>255){doc.addPage();y=18;}
+    B(9); setT(MUT); doc.text(title.toUpperCase(), M, y); y+=3;
+    setF(MUT); doc.rect(M,y,CW,.3,'F'); y+=4;
+    // Header
+    setF(ACC); doc.rect(M,y,CW,6,'F');
+    B(7); setT(WHITE);
+    doc.text('Ratio', M+2, y+4.2);
+    doc.text('Waarde', M+78, y+4.2, {align:'right'});
+    doc.text('Sectornorm', M+108, y+4.2, {align:'right'});
+    doc.text('Beoordeling', M+130, y+4.2);
+    doc.text('Gebruikte codes', M+CW, y+4.2, {align:'right'});
+    y+=6;
+
+    ratioIds.forEach((id,i) => {
+      if(y>272){doc.addPage();y=18;}
+      const def=defs.find(d=>d.id===id); if(!def)return;
+      const val=vals[id];
+      const {lbl,col}=levelInfo(def,val);
+      const bg=i%2===0?WHITE:[248,247,244];
+      setF(bg); doc.rect(M,y,CW,9,'F');
+      N(8); setT(ACC); doc.text(def.label, M+2, y+5.5, {maxWidth:64});
+      // Value
+      B(8); setT(col); doc.text(fmtVal(val,def.valCls), M+78, y+5.5, {align:'right'});
+      // Norm
+      N(7); setT(MUT);
+      const normTxt = def.normKey&&S[def.normKey]!==undefined ? (def.higherBetter?'>':'<')+' '+fmtVal(S[def.normKey],def.valCls) : '—';
+      doc.text(normTxt, M+108, y+5.5, {align:'right'});
+      // Badge
+      setF(col); doc.roundedRect(M+112, y+1.8, 20, 5, 1, 1, 'F');
+      B(6.5); setT(WHITE); doc.text(lbl, M+122, y+5.5, {align:'center'});
+      // Codes
+      N(6.5); setT([160,160,160]);
+      // Show fvRows compactly
+      const fv=def.fvRows(r);
+      const codesStr=fv.map(([lbl,v])=>lbl.match(/\(([^)]+)\)/)?lbl.match(/\(([^)]+)\)/)[1]+'='+fmtEur(v):fmtEur(v)).slice(0,3).join(' | ');
+      doc.text(codesStr, M+CW, y+5.5, {align:'right', maxWidth:42});
+      y+=9;
+    });
+    y+=5;
+  }
+
+  ratioTable('Liquiditeit', ['liqR','liqE','nwk','kas']);
+  ratioTable('Solvabiliteit & Schulden', ['solv','schuldratio']);
+  ratioTable('Rendabiliteit', ['roe']);
+  ratioTable('Werkkapitaal & Rotatie', ['kk','lk','omloop']);
+
+  // ── FORMULE DETAIL PAGE ──
+  doc.addPage(); y=18;
+  B(13); setT(ACC); doc.text('Formule-detail & gebruikte cijfers', M, y); y+=3;
+  setF(ACC); doc.rect(M,y,CW,.4,'F'); y+=8;
+
+  defs.forEach(def => {
+    if(y>255){doc.addPage();y=18;}
+    const val=vals[def.id];
+    setF(BG); doc.roundedRect(M,y,CW,6,1,1,'F');
+    B(9); setT(ACC); doc.text(def.label, M+4, y+4.2);
+    B(9); const {lbl,col}=levelInfo(def,val); setT(col);
+    doc.text(fmtVal(val,def.valCls), W-M, y+4.2, {align:'right'});
+    y+=8;
+    N(8); setT([80,80,80]); doc.text('Formule: '+def.formula, M+4, y); y+=5;
+    N(7); setT(MUT); doc.text('Codes: '+def.codes, M+4, y); y+=5;
+    // Values table
+    const fvRows=def.fvRows(r);
+    fvRows.forEach(([lbl,v],i)=>{
+      if(y>272){doc.addPage();y=18;}
+      const bg=i%2===0?WHITE:[248,247,244];
+      setF(bg); doc.rect(M+4,y,CW-4,5.5,'F');
+      N(7.5); setT([80,80,80]); doc.text(lbl, M+7, y+3.8);
+      B(7.5); setT(ACC);
+      doc.text(isFinite(v)&&!isNaN(v)?v.toLocaleString('nl-BE',{maximumFractionDigits:2}):'—', W-M, y+3.8, {align:'right'});
+      y+=5.5;
+    });
+    y+=6;
+  });
+
+  // ── FOOTER ──
+  const totalPages=doc.internal.getNumberOfPages();
+  for(let p=1;p<=totalPages;p++){
+    doc.setPage(p);
+    setF(ACC); doc.rect(0,287,W,10,'F');
+    N(7); setT([140,140,140]);
+    doc.text('Financieel Dashboard — '+(document.getElementById('entity-name').textContent||fname)+' — Ref. '+jaar, M, 293);
+    doc.text('p.'+p+'/'+totalPages, W-M, 293, {align:'right'});
+  }
+
+  const entityEl = document.getElementById('entity-name');
+  const entityForFile = (entityEl && entityEl.textContent && entityEl.textContent !== '—')
+    ? entityEl.textContent.replace(/[^a-zA-Z0-9_\-]/g,'_').replace(/_+/g,'_').slice(0,40)
+    : fname;
+  doc.save('rapport_'+entityForFile+'_'+jaar+'.pdf');
+  showToast('PDF geëxporteerd.');
+}
+</script>
+</body>
+</html>
