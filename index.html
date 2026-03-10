@@ -1043,22 +1043,33 @@ function exportPDF() {
   doc.text('Datum: '+new Date().toLocaleDateString('nl-BE'), W-M, 39, {align:'right'});
   y=53;
 
-  // ── SCORE BANNER ──
-  setF(ACC); doc.roundedRect(M, y, CW, 26, 2, 2, 'F');
-  const final = vals.liqR!==undefined ? (() => {
-    let tw=0,ts=0;
-    [['liqR',1],['liqE',1],['solv',1],['schuldratio',1],['roe',1.2],['kk',.8],['lk',.8],['omloop',.8]].forEach(([id,w])=>{
-      const def=defs.find(d=>d.id===id); if(!def||!def.thresholds)return;
-      const v=vals[id]; if(!isFinite(v)||isNaN(v))return;
-      const thr=def.thresholds(S); const scores=[10,7.5,5,2.5,0];
-      let idx=4;
-      if(def.higherBetter){if(v>=thr[0])idx=0;else if(v>=thr[1])idx=1;else if(v>=thr[2])idx=2;else if(v>=thr[3])idx=3;}
-      else{if(v<=thr[0])idx=0;else if(v<=thr[1])idx=1;else if(v<=thr[2])idx=2;else if(v<=thr[3])idx=3;}
-      ts+=scores[idx]*w; tw+=w;
-    });
-    return tw>0?ts/tw:null;
-  })() : null;
+  // ── SCORE BANNER — zelfde logica als website ──
+  // Hergebruik renderRating-logica: categoriegemiddelden met gewichten 25/25/30/20
+  function pdfRScore(def, val) {
+    if (!def || !def.thresholds || !isFinite(val) || isNaN(val)) return null;
+    const thr = def.thresholds(S);
+    if (def.higherBetter) {
+      if (val >= thr[0]) return 10; if (val >= thr[1]) return 7.5;
+      if (val >= thr[2]) return 5;  if (val >= thr[3]) return 2.5; return 0;
+    } else {
+      if (val <= thr[0]) return 10; if (val <= thr[1]) return 7.5;
+      if (val <= thr[2]) return 5;  if (val <= thr[3]) return 2.5; return 0;
+    }
+  }
+  function pdfCatAvg(ids) {
+    const sc = ids.map(id => pdfRScore(defs.find(d=>d.id===id), vals[id])).filter(s=>s!==null);
+    return sc.length ? sc.reduce((a,b)=>a+b,0)/sc.length : null;
+  }
+  const pdfSLiq  = pdfCatAvg(['liqR','liqE']);
+  const pdfSSolv = pdfCatAvg(['solv','schuldratio']);
+  const pdfSRend = pdfCatAvg(['roe']);
+  const pdfSWk   = pdfCatAvg(['kk','lk','omloop']);
+  const pdfCats  = [[pdfSLiq,.25],[pdfSSolv,.25],[pdfSRend,.3],[pdfSWk,.2]];
+  let pdfTw=0, pdfTs=0;
+  pdfCats.forEach(([sc,w]) => { if(sc!==null){pdfTs+=sc*w;pdfTw+=w;} });
+  const final = pdfTw>0 ? pdfTs/pdfTw : null;
 
+  setF(ACC); doc.roundedRect(M, y, CW, 26, 2, 2, 'F');
   const tierColor = final===null?MUT:final>=8?[130,194,130]:final>=6.5?[165,214,167]:final>=4.5?[240,220,100]:final>=3?AMBER:RED;
   B(26); setT(tierColor); doc.text(final!==null?final.toFixed(1)+'/10':'N/B', M+12, y+17);
   N(8); setT([160,160,160]); doc.text('FINANCIËLE SCORE', M+12, y+23);
