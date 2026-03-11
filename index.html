@@ -271,6 +271,41 @@ input[type="file"] { display: none; }
 @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.35} }
 .loading { animation: pulse 1s ease-in-out infinite; }
 
+/* ── COMPARISON TABLE ── */
+.cmp-group { margin-bottom: 28px; }
+.cmp-group-title { font-size: 10px; font-weight: 700; letter-spacing: .18em; text-transform: uppercase; color: var(--muted); margin-bottom: 10px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
+.cmp-row { display: grid; grid-template-columns: 2fr 1fr 1fr 80px; gap: 0; border-bottom: 1px solid var(--border); align-items: center; }
+.cmp-row:last-child { border-bottom: none; }
+.cmp-row:hover { background: #f7f6f2; }
+.cmp-row-header { grid-template-columns: 2fr 1fr 1fr 80px; background: var(--accent); border-radius: 3px 3px 0 0; }
+.cmp-cell { padding: 9px 12px; font-size: 12px; font-family: 'IBM Plex Mono', monospace; color: var(--accent); }
+.cmp-cell.label { font-family: 'IBM Plex Sans', sans-serif; font-size: 12px; font-weight: 500; }
+.cmp-cell.hdr { font-size: 9px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: rgba(255,255,255,.5); font-family: 'IBM Plex Sans', sans-serif; }
+.cmp-delta { display: flex; align-items: center; gap: 5px; font-weight: 700; font-size: 12px; }
+.delta-up { color: var(--green); }
+.delta-dn { color: var(--red); }
+.delta-neu { color: var(--muted); }
+.delta-arrow { font-size: 14px; line-height: 1; }
+
+/* ── SECTOR WIZARD MODAL ── */
+.sw-overlay { display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,.6); z-index:2000; align-items:center; justify-content:center; padding:20px; overflow-y:auto; }
+.sw-overlay.open { display:flex; }
+.sw-box { background:#fff; border-radius:6px; width:100%; max-width:520px; overflow:hidden; box-shadow:0 24px 60px rgba(0,0,0,.3); }
+.sw-head { background:var(--accent); padding:18px 20px; display:flex; align-items:center; justify-content:space-between; }
+.sw-title { color:#fff; font-size:14px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; }
+.sw-close { background:none; border:1.5px solid rgba(255,255,255,.25); color:#fff; width:28px; height:28px; border-radius:2px; cursor:pointer; font-size:14px; }
+.sw-body { padding:24px; }
+.sw-label { font-size:12px; font-weight:600; color:var(--accent); margin-bottom:8px; display:block; }
+.sw-textarea { width:100%; height:90px; border:1.5px solid var(--border); border-radius:3px; padding:10px 12px; font-family:'IBM Plex Sans',sans-serif; font-size:13px; resize:none; outline:none; color:var(--accent); }
+.sw-textarea:focus { border-color:var(--gold); }
+.sw-btn { margin-top:14px; width:100%; background:var(--accent); color:#fff; border:none; padding:11px; font-size:12px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; cursor:pointer; border-radius:3px; font-family:'IBM Plex Sans',sans-serif; }
+.sw-btn:hover { background:#2c2c4a; }
+.sw-result { margin-top:16px; display:none; }
+.sw-sector-btn { display:block; width:100%; text-align:left; padding:10px 14px; margin-bottom:6px; border:2px solid var(--border); background:#fff; border-radius:3px; cursor:pointer; font-family:'IBM Plex Sans',sans-serif; transition:all .15s; }
+.sw-sector-btn:hover, .sw-sector-btn.best { border-color:var(--gold); background:rgba(184,150,62,.07); }
+.sw-sector-btn .sw-s-name { font-size:13px; font-weight:700; color:var(--accent); }
+.sw-sector-btn .sw-s-why { font-size:11px; color:var(--muted); margin-top:3px; }
+
 /* ── MOBILE RESPONSIVE ── */
 @media (max-width: 768px) {
   .sidebar { transform: translateX(-100%); }
@@ -327,6 +362,9 @@ input[type="file"] { display: none; }
     <div class="nav-item" onclick="showSection('werkkapitaal',this)">
       <span class="nav-icon">◇</span> Werkkapitaal &amp; Rotatie
     </div>
+    <div class="nav-item" onclick="showSection('vergelijking',this)">
+      <span class="nav-icon">&#8644;</span> Vergelijking
+    </div>
   </div>
   <div class="sector-wrap">
     <div class="sector-label">Sector benchmark</div>
@@ -339,6 +377,7 @@ input[type="file"] { display: none; }
       <option value="horeca">Horeca</option>
       <option value="tech">Tech &amp; IT</option>
     </select>
+    <button onclick="openSectorWizard()" style="width:100%;margin-top:8px;background:rgba(184,150,62,.15);border:1px solid rgba(184,150,62,.4);color:var(--gold);padding:7px 10px;font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;border-radius:2px;font-family:'IBM Plex Sans',sans-serif;">🔍 Hulp bij keuze</button>
     <div style="font-size:9px;color:rgba(255,255,255,.22);margin-top:6px;line-height:1.4">
       Gouden marker = sectornorm.<br>Zwarte marker = algemene norm.
     </div>
@@ -437,10 +476,55 @@ input[type="file"] { display: none; }
     <div class="ratio-grid" id="grid-wk"></div>
   </div>
 
+  <!-- ══ VERGELIJKING ══ -->
+  <div id="sec-vergelijking" class="section">
+    <div class="section-title">Vergelijking met ander boekjaar of onderneming</div>
+    <div style="display:flex;gap:12px;margin-bottom:24px;flex-wrap:wrap;align-items:center">
+      <label class="upload-label" for="file-b" style="background:#2c4a2e">↑ Laad vergelijkingsbestand</label>
+      <input type="file" id="file-b" accept=".xlsx,.xls,.csv">
+      <span id="file-b-name" style="font-size:11px;color:var(--muted);font-family:'IBM Plex Mono',monospace">Geen bestand</span>
+      <div id="cmp-entity-b" style="font-size:13px;font-weight:700;color:var(--accent);display:none"></div>
+    </div>
+    <div id="cmp-placeholder" style="padding:48px;text-align:center;color:var(--muted);font-size:13px;border:2px dashed var(--border);border-radius:4px">
+      Laad een eerste bestand (↑ Bestand laden) en een vergelijkingsbestand om de vergelijking te starten.
+    </div>
+    <div id="cmp-table-wrap" style="display:none">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px">
+        <div style="background:var(--accent);padding:12px 16px;border-radius:3px">
+          <div style="font-size:9px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:rgba(255,255,255,.35);margin-bottom:4px">Bestand A (basis)</div>
+          <div id="cmp-label-a" style="font-size:14px;font-weight:700;color:#fff">—</div>
+          <div id="cmp-sub-a" style="font-size:11px;color:rgba(255,255,255,.4);margin-top:2px">—</div>
+        </div>
+        <div style="background:#1a3a1a;padding:12px 16px;border-radius:3px">
+          <div style="font-size:9px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:rgba(255,255,255,.35);margin-bottom:4px">Bestand B (vergelijking)</div>
+          <div id="cmp-label-b" style="font-size:14px;font-weight:700;color:#fff">—</div>
+          <div id="cmp-sub-b" style="font-size:11px;color:rgba(255,255,255,.4);margin-top:2px">—</div>
+        </div>
+      </div>
+      <div id="cmp-grid"></div>
+    </div>
+  </div>
+
 </div><!-- /main -->
 </div><!-- /shell -->
 
 <div id="toast"></div>
+
+<!-- SECTOR WIZARD -->
+<div class="sw-overlay" id="sw-overlay" onclick="swClickOutside(event)">
+  <div class="sw-box">
+    <div class="sw-head">
+      <span class="sw-title">🔍 Sectorkeuze-assistent</span>
+      <button class="sw-close" onclick="closeSectorWizard()">✕</button>
+    </div>
+    <div class="sw-body">
+      <label class="sw-label">Beschrijf de activiteit van de onderneming (bv. "softwareontwikkeling voor KMO's", "groothandel in bouwmaterialen", "restaurant in Antwerpen"):</label>
+      <textarea class="sw-textarea" id="sw-input" placeholder="Typ hier de activiteitsbeschrijving…"></textarea>
+      <button class="sw-btn" onclick="runSectorWizard()">Analyseer &amp; stel sector voor</button>
+      <div class="sw-result" id="sw-result"></div>
+    </div>
+  </div>
+</div>
 
 <script>
 // ══ SECTOR BENCHMARKS ══════════════════════════════════════════════════════════
@@ -493,20 +577,29 @@ function getRatios(r, sector) {
     {
       id:'nwk', label:'Nettobedrijfskapitaal', valCls:'eur', normKey:null, min:null, max:null, higherBetter:true,
       thresholds: null,
-      formula: 'Vlottende activa − Schulden KT',
-      codes: '29/58 − 42/48',
-      desc: 'Absolute liquiditeitsbuffer. Positief = financiële marge. Negatief = betalingsrisico.',
-      fvRows: r => [['Vlottende activa (29/58)', r.vlottende],['Schulden KT (42/48)', r.schKT]],
+      formula: 'Vlottende activa KT (<1j) − Vreemd vermogen KT (<1j)',
+      codes: '(29/58 − 28) − 42/48',
+      desc: 'Absolute liquiditeitsbuffer op korte termijn. Positief = financiële marge. Negatief = betalingsrisico.',
+      fvRows: r => [['Vlottende activa KT (29/58−28)', r.vlottendeKT],['Vreemd vermogen KT (42/48)', r.schKT]],
       sections:['overzicht','liquiditeit'],
     },
     {
-      id:'kas', label:'Nettokaspositie', valCls:'eur', normKey:null, min:null, max:null, higherBetter:true,
+      id:'bnbk', label:'Behoefte aan Nettobedrijfskapitaal', valCls:'eur', normKey:null, min:null, max:null, higherBetter:true,
       thresholds: null,
-      formula: '(Geldbeleggingen + Liquide middelen) − Financiële schulden KT',
-      codes: '(50/53 + 54/58) − 43',
-      desc: 'Meer cash dan financiële schulden bij banken = sterke kaspositie.',
-      fvRows: r => [['Geldbeleggingen (50/53)', r.geldbel],['Liquide middelen (54/58)', r.liquide],['Financiële schulden KT (43)', r.finSchKT]],
-      sections:['overzicht','liquiditeit'],
+      formula: 'Vlottende bedrijfsactiva − Vreemd vermogen KT excl. financiële schulden',
+      codes: '(3 + 40/41 + 490/1) − (42/48 − 43)',
+      desc: 'Kapitaalbehoefte voor de operationele cyclus. Hoe lager, hoe minder externe financiering nodig.',
+      fvRows: r => [['Voorraden (3)', r.voorraden],['Vorderingen KT (40/41)', r.vorderKT],['Overlopend activa (490/1)', r.overlopA],['VV KT excl. fin. schulden (42/48−43)', r.schKTExclFin]],
+      sections:['liquiditeit'],
+    },
+    {
+      id:'nkp', label:'Nettokaspositie', valCls:'eur', normKey:null, min:null, max:null, higherBetter:true,
+      thresholds: null,
+      formula: 'Nettobedrijfskapitaal − Behoefte aan nettobedrijfskapitaal',
+      codes: 'NWK − BNBK',
+      desc: 'Positief = eigen cashgeneratie dekt de bedrijfsbehoefte. Negatief = afhankelijkheid van financiële instellingen (bijkomende leningen nodig).',
+      fvRows: r => [['Nettobedrijfskapitaal', r.vlottendeKT - r.schKT],['Behoefte NBK', (r.voorraden + r.vorderKT + r.overlopA) - r.schKTExclFin]],
+      sections:['liquiditeit'],
     },
     // ── SOLVABILITEIT ──
     {
@@ -617,6 +710,7 @@ function showSection(id, el) {
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   document.getElementById('sec-' + id).classList.add('active');
   if (el) el.classList.add('active');
+  if (id === 'vergelijking') renderComparison();
   if (window.innerWidth <= 768) toggleSidebar(false);
 }
 function toggleSidebar(forceClose) {
@@ -800,8 +894,9 @@ function computeValues(r) {
   return {
     liqR: schKTtot !== 0 ? (r.voorraden + r.vorderKT + r.geldbel + r.liquide + r.overlopA) / schKTtot : NaN,
     liqE: r.schKT !== 0 ? (r.vorderKT + r.geldbel + r.liquide) / r.schKT : NaN,
-    nwk:  r.vlottende - r.schKT,
-    kas:  (r.geldbel + r.liquide) - r.finSchKT,
+    nwk:  r.vlottendeKT - r.schKT,
+    bnbk: (r.voorraden + r.vorderKT + r.overlopA) - r.schKTExclFin,
+    nkp:  (r.vlottendeKT - r.schKT) - ((r.voorraden + r.vorderKT + r.overlopA) - r.schKTExclFin),
     solv: r.totPassiva !== 0 ? r.eigenV / r.totPassiva * 100 : NaN,
     schuldratio: r.totActiva !== 0 ? r.totSchuld / r.totActiva * 100 : NaN,
     roe:  r.eigenV !== 0 ? r.nettowinst / r.eigenV * 100 : NaN,
@@ -950,10 +1045,15 @@ function extractVars(v) {
   const c9146=g(v,'9146'), c9145=g(v,'9145');
   const handschuld=g(v,'44');
   const c34=g(v,'34'), c3031=g(v,'30/31'), c36=g(v,'36'), c35=g(v,'35');
+  const vaste=g(v,'20/28')||g(v,'20/27');
+  // In Belgisch boekhoudrecht is 29/58 = vlottende activa (KT). Als 29/58 aanwezig, gebruik dat direct.
+  // Als niet beschikbaar, dan totale activa min vaste activa.
+  const vlottendeKT = vlottende > 0 ? vlottende : Math.max(0, totActiva - vaste);
+  const schKTExclFin = Math.max(0, schKT - finSchKT);
   return {
     omzet,c74,c740,c60,c61,c600,totActiva,totPassiva,eigenV,schLT,
-    vlottende,voorraden,schKT,overlopP,ebit,afs,ebitda,nettowinst,
-    vorderKT,c40,geldbel,liquide,overlopA,finSchKT,c9146,c9145,
+    vlottende,vlottendeKT,voorraden,schKT,overlopP,ebit,afs,ebitda,nettowinst,
+    vorderKT,c40,geldbel,liquide,overlopA,finSchKT,schKTExclFin,c9146,c9145,
     handschuld,c34,c3031,c36,c35,
     totSchuld: (g(v,'17/49') || (g(v,'10/49') - g(v,'10/15')))
   };
@@ -1146,7 +1246,7 @@ function exportPDF() {
     y+=5;
   }
 
-  ratioTable('Liquiditeit', ['liqR','liqE','nwk','kas']);
+  ratioTable('Liquiditeit', ['liqR','liqE','nwk','bnbk','nkp']);
   ratioTable('Solvabiliteit & Schulden', ['solv','schuldratio']);
   ratioTable('Rendabiliteit', ['roe']);
   ratioTable('Werkkapitaal & Rotatie', ['kk','lk','omloop']);
@@ -1197,6 +1297,570 @@ function exportPDF() {
   doc.save('rapport_'+entityForFile+'_'+jaar+'.pdf');
   showToast('PDF geëxporteerd.');
 }
+
+// ══ SECTOR WIZARD ══════════════════════════════════════════════════════════════
+function openSectorWizard() {
+  document.getElementById('sw-overlay').classList.add('open');
+  document.body.style.overflow = 'hidden';
+  document.getElementById('sw-result').style.display = 'none';
+  document.getElementById('sw-input').value = '';
+}
+function closeSectorWizard() {
+  document.getElementById('sw-overlay').classList.remove('open');
+  document.body.style.overflow = '';
+}
+function swClickOutside(e) {
+  if (e.target === document.getElementById('sw-overlay')) closeSectorWizard();
+}
+
+function runSectorWizard() {
+  const desc = document.getElementById('sw-input').value.trim();
+  if (!desc) { return; }
+  const resultEl = document.getElementById('sw-result');
+  resultEl.style.display = 'block';
+  resultEl.innerHTML = '<div style="color:var(--muted);font-size:12px;padding:8px 0">Analyseer…</div>';
+
+  // Rule-based sector matching — uitgebreide keyword database
+  const d = desc.toLowerCase();
+  const scores = { handel:0, productie:0, diensten:0, bouw:0, horeca:0, tech:0 };
+
+  // ── HANDEL — primaire signalen (elk +4) ──
+  const handelPrimair = [
+    /groothandel/, /detailhandel/, /winkelketen/, /supermarkt/, /hypermarkt/, /warenhu(is|izen)/,
+    /distributeur/, /importeur/, /exporteur/, /handelsbedrijf/, /handelsonderneming/,
+    /retail/, /wholesale/, /webshop/, /e-commerce/, /online(winkel| shop| store)/,
+    /verkoop(skantoor|organisatie)?/, /leverancier/, /dropship/, /tussenhandel/,
+    /inkoop(centrale)?/, /voedingsdistrib/, /drankenhandel/, /kledingwinkel/,
+    /schoenenwinkel/, /meubelwinkel/, /elektrozaak/, /bouwmarkt/, /tuincentrum/,
+    /dierenwinkel/, /speelgoedwinkel/, /boekhandel/, /parfumer/, /juwelier/,
+    /autohandel/, /autodealer/, /tweedehandsauto/, /occasion/, /autoverkoop/,
+    /pharmahandel/, /medische benodigdheden/, /kantoorbenodigdheden/, /papiergroothandel/,
+  ];
+  handelPrimair.forEach(r => { if (r.test(d)) scores.handel += 4; });
+
+  // ── PRODUCTIE — primaire signalen ──
+  const productiePrimair = [
+    /productiebedrijf/, /productiefabriek/, /fabriek/, /fabricage/, /manufacturing/,
+    /assemblage/, /assembleren/, /vervaardigen/, /vervaardiging/,
+    /gieterij/, /smederij/, /metaalbewerking/, /machinebouw/, /constructiebedrijf/,
+    /chemische (industrie|productie|sector)/, /farmaceutisch(e)?/, /geneesmiddelen(fabr)/,
+    /voedingsindustrie/, /voedingsproductie/, /voedselverwer/, /slachthuis/, /zuivelproduct/,
+    /brouwerij/, /distilleerderij/, /wijnmak/, /bakkerij(keten)?/,
+    /textielindustrie/, /kledingproductie/, /confectie/, /spinnerij/, /weverij/,
+    /papierindustrie/, /kartonfabr/, /verpakkingsindustrie/, /drukkerij/, /uitgever/,
+    /houtbewerking/, /meubelproductie/, /timmerwerk(bedrijf)?/, /schrijnwerk/,
+    /rubber|kunststof|plastic(verwerk)?/, /glasproductie/, /keramiek/,
+    /elektronica(fabr|productie)?/, /printplaat/, /halfgeleider/, /chip(fabr)?/,
+    /automobielfabr/, /wagenbouw/, /carrosserie/, /onderdelen(fabr)?/,
+    /staalindustrie/, /aluminiumsmelterij/, /non-ferrometalen/,
+    /cokesfabr|raffinaderij|petrochemie/, /meststoffen|pesticiden/, /verfproductie/,
+  ];
+  productiePrimair.forEach(r => { if (r.test(d)) scores.productie += 4; });
+
+  // ── BOUW — primaire signalen ──
+  const bouwPrimair = [
+    /bouwbedrijf/, /bouwonderneming/, /aannemer/, /aanneming/, /algemene aannemer/,
+    /projectontwikkel/, /vastgoedontwikkel/, /vastgoedbeheer/, /vastgoedmaatschappij/,
+    /immo(bilier|bedrijf|kanto(or|ren))?/, /makelaar/, /vastgoedmakelaar/,
+    /renovatiebedrijf/, /verbouwing/, /restauratie(bedrijf)?/,
+    /schildersbedrijf/, /schilderwerk/, /dakwerken/, /dakdekker/,
+    /loodgieter(sbedrijf)?/, /sanitair(installatie)?/, /cv-installatie/, /verwarmingstechniek/,
+    /elektri(cien|sche installatie|citeitsbedrijf)/, /elektrotechnisch(e)?/,
+    /ventilatie(bedrijf|systemen)?/, /airco(installatie)?/, /klimaatinstallatie/,
+    /vloer(legger|techniek)?/, /parket(legger)?/, /tegelzetter/,
+    /glaswerken?/, /ramen en deuren/, /schrijnwerk(erij)?/, /timmerwerk/,
+    /betonwerken?/, /funderingswerken?/, /grondwerken?/, /wegenwerken?/,
+    /burgerlijk(e)? (en utiliteitsbouw|ingenieur)/, /infrastruc(tuurwerken?)?/,
+    /wegenbouw/, /riolering/, /nutsleidingen/, /bronbemaling/,
+    /interieurarchitect/, /binnenhuisarchitect/, /architectenbureau/,
+    /landmeter/, /studieburo bouw/, /ingenieursbu(reau|ro) bouw/,
+  ];
+  bouwPrimair.forEach(r => { if (r.test(d)) scores.bouw += 4; });
+
+  // ── HORECA — primaire signalen ──
+  const horecaPrimair = [
+    /restaurant/, /brasserie/, /bistro/, /brasserij/, /eetcafé/, /eetgelegenheid/,
+    /traiteur/, /catering(bedrijf)?/, /cateraar/, /feestzaal/, /banquet/,
+    /hotel(bedrijf|keten)?/, /motel/, /inn\b/, /b&b/, /bed (en|&|and) breakfast/,
+    /hostel/, /vakantiepark/, /bungalowpark/, /camping/, /glamping/,
+    /café\b/, /bar\b/, /pub\b/, /taverne/, /drankgelegenheid/, /nachtclub/, /discotheek/,
+    /frituur/, /frietkot/, /snackbar/, /fastfood/, /takeaway/, /afhaalrestaurant/,
+    /bakker(ij)?/, /patisserie/, /banketbakker/, /confiserie/, /tearoom/, /koffiebar/,
+    /ijssalon/, /ijsjeswinkel/, /lunchroom/, /lunchbar/, /sandwichbar/,
+    /slager(ij)?/, /beenhouwer/, /charcuterie/,
+    /cateraar/, /maaltijdbezorg/, /maaltijdkit/, /fooddelivery/,
+    /wijnbar/, /wijnhuis/, /proeverij/, /bierbrouwerij\b/,
+    /wellness(centrum)?/, /spa\b/, /sauna/, /thermaal(bad)?/,
+  ];
+  horecaPrimair.forEach(r => { if (r.test(d)) scores.horeca += 4; });
+
+  // ── TECH — primaire signalen ──
+  const techPrimair = [
+    /softwarebedrij/, /softwarehuis/, /softwareontwikkel/, /softwarebouw/,
+    /it-bedrij/, /it-dienst/, /ict-bedrij/, /ict-dienst/,
+    /app(licatie)?ontwikkel/, /mobiele app/, /appontwikkel/,
+    /webontwikkel/, /webdesign/, /webbureau/, /websitebouw/,
+    /platform(ontwikkel|aanbieder)?/, /saas\b/, /paas\b/, /iaas\b/,
+    /cloud(diensten|oplossingen|hosting|provider)?/,
+    /cybersecurity/, /informatiebeveiliging/, /penetratietest/, /ethisch hacker/,
+    /netwerk(beheer|infrastructuur|installatie)?/, /it-infrastructuur/,
+    /databeheer/, /database(beheer|ontwikkel)?/, /data-engineer/, /data-analist/,
+    /artificiele intelligentie/, /machine learning/, /deep learning/, /ai-oplossingen/,
+    /automatisering(sbedrij)?/, /robotica/, /industrie 4\.0/, /digitale transformatie/,
+    /erp(implementatie|consultant|leverancier)?/, /crm(software|leverancier)?/,
+    /it-consultant/, /digitaal advies/, /technologieconsult/,
+    /helpdesk/, /it-support/, /managed service/, /outsourcing it/,
+    /telecom(municatie|bedrij)?/, /provider/, /internetaanbieder/, /gsm-operator/,
+    /e-health/, /medtech/, /fintech/, /legaltech/, /hrtech/, /proptech/,
+    /gaming(bedrijf|studio)?/, /spelontwikkel/, /game studio/,
+    /drone(technologie|bedrij)?/, /iot\b/, /internet of things/, /embedded system/,
+    /blockchain/, /crypto(currency|valuta)?/, /web3/, /nft/,
+    /3d-print/, /additive manufacturing/, /rapid prototyping/,
+  ];
+  techPrimair.forEach(r => { if (r.test(d)) scores.tech += 4; });
+
+  // ── DIENSTEN — primaire signalen ──
+  const dienstenPrimair = [
+    /adviesbureau/, /consultanc(y|ij)/, /managementconsult/, /bedrijfsadvies/,
+    /advocaten(kantoor|bureau)?/, /advocaatbureau/, /juridisch(e)? dienst/, /notaris/,
+    /boekhoudk(antoor|ureau)?/, /accountanc(y|ij)/, /accountantsk(antoor)?/, /fiscaal advies/, /belastingadvies/,
+    /auditing/, /audit(bureau|kantoor)?/, /revisor/, /bedrijfsrevisor/,
+    /marketing(bureau|agency|bedrijf)?/, /reclamebureau/, /communicatiebureau/, /pr-bureau/,
+    /mediabedrijf/, /creatief bureau/, /designstudio/, /grafisch ontwerpbureau/,
+    /hr(-dienst|bedrij|consultanc)?/, /personeelsbedrij/, /uitzendbureau/, /interimbureau/,
+    /recruitement/, /headhunter/, /selectie(bureau)?/, /personeelsselectie/,
+    /schoonmaak(bedrijf|dienst)?/, /facility management/, /facilitair(e)? dienst/,
+    /beveiligingsbedrijf/, /bewakingsbedrijf/, /beveiligingsdienst/,
+    /tuinaanleg/, /hoveniers(bedrijf)?/, /groenonderhoud/, /landschapsarchitect/,
+    /zorginstelling/, /thuiszorg/, /thuisverpleging/, /rusthuiz?/, /woonzorgcentrum/,
+    /kinderopvang/, /kinderdagverblijf/, /crèche/, /buitenschoolse opvang/,
+    /onderwijsinstelling/, /school\b/, /academie/, /opleidingscentrum/, /bijleslokaal/,
+    /fitnesscentrum/, /sportclub/, /sportschool/, /gym\b/, /personal training/,
+    /kapperszaak/, /kapper\b/, /schoonheidssalon/, /nagelstudio/, /schoonheidsbehandeling/,
+    /autorijschool/, /rijschool\b/, /rijopleiding/,
+    /uitvaart(ondernemer|bedrijf)?/, /begrafenisonderneming/,
+    /fotograaf|fotografiestudio|fotobewerking/,
+    /vertalingsburo|vertaalbureau|vertaler/,
+    /eventbureau|evenementenbureau|evenementenorganisatie/,
+    /reisagentschap|reisburea|touroperator|reisbureau/,
+    /vastgoedbeheer(der)?|syndicus|appartementsbeher/,
+    /verzekeringsbedrij|verzekeringsmakelaardij|verzekeringsagent/,
+    /bank\b|financieel(e)? instelling|kredietinstelling|beleggingsfonds/,
+    /leasingmaatschappij|autolease|operationele lease/,
+    /ingenieursbureau|studieburo|ingenieursdienst/,
+    /meetburo|landmeter(bedrij)?/,
+    /veterinair(e)? praktijk|dierenarts(praktijk)?/,
+    /tandarts(praktijk)?|tandheelkunde|orthodontist/,
+    /huisarts(praktijk)?|medisch centrum|artsenpraktijk|kliniek/,
+    /kinesist(enpraktijk)?|kinesitherapie|revalidatiecentrum/,
+    /psycholoog|psychologenpraktijk|psychotherapie/,
+  ];
+  dienstenPrimair.forEach(r => { if (r.test(d)) scores.diensten += 4; });
+
+  // ── SECUNDAIRE SIGNALEN (contextversterkers, +1 tot +2) ──
+  // Handel
+  if (/voorraad|stock|palet|opslag|magazijnbeheer|logistiek|vrachtbrief|incoterm/.test(d)) { scores.handel += 2; scores.productie += 1; }
+  if (/marge|inkoopprijs|verkoopprijs|handelsmarge|kortingspolitiek/.test(d)) scores.handel += 2;
+  if (/kassasysteem|pos-systeem|klantenkaart|loyaliteitsprogramma/.test(d)) scores.handel += 2;
+  if (/catalogus|productcatalog|assortiment/.test(d)) scores.handel += 1;
+
+  // Productie
+  if (/machines?|machinepark|productielijn|lopende band|automatische lijn/.test(d)) scores.productie += 2;
+  if (/grondstof|halffabricaat|eindproduct|productieproces|kwaliteitscontrole|iso(certificaat)?/.test(d)) scores.productie += 2;
+  if (/batch|serieproductie|maatwerk(productie)?|prototype/.test(d)) scores.productie += 1;
+  if (/afvalverwerking|recyclage|circulaire economie/.test(d)) scores.productie += 1;
+
+  // Bouw
+  if (/vergunning|omgevingsvergunning|stedenbouw|architect/.test(d)) scores.bouw += 2;
+  if (/werf|werfopvolging|werfleider|chantier/.test(d)) scores.bouw += 2;
+  if (/veiligheidscoordinator|vca|bouwplaats/.test(d)) scores.bouw += 2;
+  if (/nieuwbouw|verbouwing|uitbreiding|restauratie/.test(d)) scores.bouw += 1;
+  if (/huur|verhuur|pacht|huurinkomsten/.test(d)) scores.bouw += 1;
+
+  // Horeca
+  if (/menu|gerecht|keuken|kok|chef|maaltijd|ontbijt|lunch|diner/.test(d)) scores.horeca += 2;
+  if (/tafels?|bediening|kelner|zaalpersoneel|reservatie/.test(d)) scores.horeca += 2;
+  if (/ticket|inkom|toegangsprijs|evenement/.test(d)) { scores.horeca += 1; scores.diensten += 1; }
+  if (/seizoensbedrijf|seizoensgebonden|zomerseizoen|winterseizoen/.test(d)) scores.horeca += 1;
+
+  // Tech
+  if (/api\b|rest api|microservice|devops|agile|scrum|sprint/.test(d)) scores.tech += 2;
+  if (/licentie(software)?|abonnementsmodel|maandelijks abonnement|jaarlijks abonnement/.test(d)) scores.tech += 2;
+  if (/server|hosting|datacenter|virtualisatie|docker|kubernetes/.test(d)) scores.tech += 2;
+  if (/github|gitlab|ci\/cd|deployment|release/.test(d)) scores.tech += 1;
+  if (/digitaal|online platform|web(gebaseerd)?|browser/.test(d)) scores.tech += 1;
+
+  // Diensten
+  if (/uurloon|consultancyfee|ereloon|honorarium|dienstenprestatie/.test(d)) scores.diensten += 2;
+  if (/klantenpor?tefeuille|klantenrelatie|account manager|relatiebeher/.test(d)) scores.diensten += 1;
+  if (/project(matig|basis|opvolging)?|projectmanagement/.test(d)) scores.diensten += 1;
+  if (/attest|certificaat|erkenning|vergunning/.test(d)) scores.diensten += 1;
+
+  // ── NEGATIEVE SIGNALEN (contextuele uitsluiting, -2) ──
+  if (/restaurant|eet|maaltijd/.test(d) && /software|saas|tech/.test(d)) scores.horeca -= 2;
+  if (/bouw/.test(d) && /software|ict|it /.test(d)) scores.bouw -= 2;
+  if (/handel/.test(d) && /software|platform/.test(d)) scores.handel -= 2;
+  // Meer contextuele uitsluitingen
+  if (/productie|fabricage/.test(d) && /software|saas|platform|app/.test(d)) scores.productie -= 2; // "productiesoftware" = tech
+  if (/zorg|medical|gezondheid/.test(d) && /software|platform|app|saas/.test(d)) scores.diensten -= 2; // "zorgsoftware" = tech
+  if (/logistiek|transport/.test(d) && /software|platform/.test(d)) { scores.handel -= 1; scores.tech += 2; }
+  if (/advies/.test(d) && /bouw|constructie|vastgoed/.test(d)) scores.bouw += 2; // "bouwadvies" → bouw, niet diensten
+  if (/advies/.test(d) && /it|ict|tech|software|digital/.test(d)) { scores.diensten -= 1; scores.tech += 2; } // "it-advies" → tech
+  if (/installatie/.test(d) && /software|app|systeem/.test(d)) scores.bouw -= 2; // "software-installatie" = tech, niet bouw
+  if (/online/.test(d) && /winkel|shop|verkoop/.test(d)) scores.handel += 2; // "online winkel" versterkt handel
+  if (/verhuur/.test(d) && /auto|wagen|voertuig/.test(d)) { scores.bouw -= 1; scores.diensten += 2; } // "autoverhuur" = diensten
+  if (/verhuur/.test(d) && /apparaat|machine|materiaal|materieel/.test(d)) { scores.bouw -= 1; scores.diensten += 2; } // "machinesverhuur" = diensten
+  if (/transport|vervoer|vracht|expeditie/.test(d) && !/software|platform/.test(d)) { scores.handel += 1; scores.diensten += 2; }
+  if (/opleiding|training|cursus/.test(d) && !/software|platform/.test(d)) scores.diensten += 2;
+
+  // ── ENGELSE SYNONIEMEN — primaire (+4) ──
+  // Handel
+  const handelEng = [
+    /trading company/, /trade\b/, /wholesaler/, /retailer/, /retail chain/,
+    /distribution company/, /distributor/, /importer/, /exporter/,
+    /e-commerce/, /online store/, /online shop/, /webstore/, /marketplace/,
+    /dealership/, /car dealer/, /auto dealer/, /car sales/,
+    /warehouse/, /logistics company/, /supply chain/, /procurement/,
+    /reseller/, /agent\b/, /commercial agent/, /sales company/,
+  ];
+  handelEng.forEach(r => { if (r.test(d)) scores.handel += 4; });
+
+  // Productie
+  const productieEng = [
+    /manufacturing/, /factory/, /plant\b/, /production facility/,
+    /food processing/, /food production/, /food manufacturer/,
+    /chemical(s)?\b/, /pharmaceutical(s)?/, /drug manufacturer/,
+    /metal(work|fabricat)/, /steel(work|product)?/, /foundry/,
+    /textile(s)?\b/, /garment manufacturer/, /clothing manufacturer/,
+    /packaging(company|manufacturer)?/, /printing company/, /publisher\b/,
+    /woodworking/, /furniture manufacturer/, /carpenter(y)?/,
+    /plastics?\b/, /rubber(product)?/, /composites?/,
+    /electronics? manufacturer/, /circuit board/, /semiconductor/,
+    /automotive manufacturer/, /vehicle manufacturer/, /parts manufacturer/,
+    /brewery\b/, /winery\b/, /distillery\b/, /dairy\b/,
+    /paint manufacturer/, /coating(s)?\b/, /adhesive manufacturer/,
+  ];
+  productieEng.forEach(r => { if (r.test(d)) scores.productie += 4; });
+
+  // Bouw
+  const bouwEng = [
+    /construction company/, /general contractor/, /contractor\b/,
+    /real estate (developer|company|agent)/, /property developer/, /property management/,
+    /real estate agency/, /estate agent/, /realtor/,
+    /renovation company/, /renovation contractor/, /refurbishment/,
+    /painting company/, /roofing company/, /roofing contractor/,
+    /plumbing(company)?/, /plumber\b/, /heating(company|contractor)?/,
+    /electrical contractor/, /electrician\b/, /electrical installation/,
+    /hvac\b/, /air conditioning/, /ventilation company/,
+    /flooring company/, /tiling company/, /interior fit-out/,
+    /civil engineering/, /road construction/, /infrastructure/,
+    /architecture(firm|bureau)?/, /architect(ural)?/,
+    /surveyor\b/, /quantity surveyor/, /project management construction/,
+    /insulation company/, /scaffolding company/,
+  ];
+  bouwEng.forEach(r => { if (r.test(d)) scores.bouw += 4; });
+
+  // Horeca
+  const horecaEng = [
+    /restaurant\b/, /brasserie\b/, /bistro\b/, /eatery\b/, /diner\b/,
+    /catering company/, /caterer\b/, /food service/,
+    /hotel\b/, /motel\b/, /inn\b/, /bed and breakfast/, /b&b\b/, /hostel\b/,
+    /holiday park/, /camping(site)?/, /glamping/,
+    /bar\b/, /pub\b/, /nightclub\b/, /club\b/,
+    /fast food/, /takeaway\b/, /food delivery/, /meal delivery/,
+    /bakery\b/, /patisserie\b/, /coffeehouse/, /coffee shop/, /tearoom\b/,
+    /butcher(shop)?/, /deli\b/, /delicatessen/,
+    /ice cream parlou?r/, /lunchroom\b/, /sandwich bar/,
+    /wine bar/, /cocktail bar/, /brewery\b/,
+    /wellness (center|centre|spa)/, /spa\b/, /sauna\b/,
+  ];
+  horecaEng.forEach(r => { if (r.test(d)) scores.horeca += 4; });
+
+  // Tech
+  const techEng = [
+    /software (company|development|house|firm|studio)/, /software developer/,
+    /it (company|firm|services|consulting)/, /ict (company|services)/,
+    /app development/, /mobile app/, /application development/,
+    /web development/, /web design/, /web agency/, /digital agency/,
+    /saas\b/, /paas\b/, /iaas\b/, /cloud (services|solutions|provider|hosting)/,
+    /cybersecurity/, /information security/, /penetration testing/,
+    /network(ing)? (company|services|infrastructure)/, /it infrastructure/,
+    /data (engineering|analytics|management|science)/, /big data/,
+    /artificial intelligence/, /machine learning/, /deep learning/,
+    /automation (company|solutions)/, /robotics\b/, /industry 4\.0/,
+    /digital transformation/, /erp (implementation|consulting)?/,
+    /it consulting/, /technology consulting/, /managed services/,
+    /helpdesk\b/, /it support/, /outsourcing\b/,
+    /telecom(munications)?/, /internet provider/, /mobile operator/,
+    /fintech\b/, /medtech\b/, /healthtech\b/, /legaltech\b/, /proptech\b/,
+    /game (studio|developer|company)/, /gaming\b/,
+    /drone(s)?\b/, /iot\b/, /internet of things/, /embedded systems?/,
+    /blockchain\b/, /cryptocurrency/, /web3\b/,
+    /3d printing/, /additive manufacturing/,
+  ];
+  techEng.forEach(r => { if (r.test(d)) scores.tech += 4; });
+
+  // Diensten
+  const dienstenEng = [
+    /consulting firm/, /management consulting/, /business advisory/,
+    /law firm/, /legal services/, /lawyer\b/, /attorney\b/, /notary\b/,
+    /accounting firm/, /accountancy\b/, /tax advisory/, /tax consultant/,
+    /audit firm/, /auditing\b/, /statutory auditor/,
+    /marketing agency/, /advertising agency/, /pr agency/, /media agency/,
+    /design studio/, /creative agency/, /branding agency/,
+    /recruitment agency/, /staffing agency/, /temp agency/, /hr consulting/,
+    /cleaning company/, /facility management/, /janitorial services/,
+    /security company/, /security services/, /guarding services/,
+    /landscaping company/, /garden(ing) company/, /grounds maintenance/,
+    /care home/, /nursing home/, /home care/, /healthcare provider/,
+    /childcare\b/, /day care/, /nursery\b/,
+    /school\b/, /academy\b/, /training center/, /educational institution/,
+    /fitness center/, /gym\b/, /sports club/, /personal trainer/,
+    /hair salon/, /beauty salon/, /nail studio/, /hairdresser/,
+    /driving school/, /funeral services/, /funeral home/,
+    /photography studio/, /translation services/, /event management/,
+    /travel agency/, /tour operator/, /property management/,
+    /insurance broker/, /insurance company/, /investment fund/,
+    /leasing company/, /car leasing/, /engineering firm/,
+    /veterinary (practice|clinic)/, /vet (practice|clinic)/,
+    /dental (practice|clinic)/, /dentist\b/, /orthodontist\b/,
+    /medical (practice|center|centre|clinic)/, /gp practice/,
+    /physiotherapy/, /rehabilitation center/, /psychologist\b/, /therapy\b/,
+    /logistics (company|provider)/, /transport(ation)? company/, /freight/,
+    /courier\b/, /delivery company/, /postal services/,
+  ];
+  dienstenEng.forEach(r => { if (r.test(d)) scores.diensten += 4; });
+
+  // ── ENGELSE SECUNDAIRE SIGNALEN ──
+  if (/inventory|stock management|warehouse management/.test(d)) { scores.handel += 2; scores.productie += 1; }
+  if (/profit margin|markup|wholesale price|retail price/.test(d)) scores.handel += 2;
+  if (/production line|assembly line|quality control|iso certified/.test(d)) scores.productie += 2;
+  if (/building permit|planning permission|site management/.test(d)) scores.bouw += 2;
+  if (/menu|kitchen|chef\b|meals?|breakfast|lunch|dinner/.test(d)) scores.horeca += 2;
+  if (/api\b|devops|agile|scrum|sprint|microservices/.test(d)) scores.tech += 2;
+  if (/hourly rate|consulting fee|retainer\b|billable hours/.test(d)) scores.diensten += 2;
+  if (/license(d)?|subscription model|monthly fee|annual fee/.test(d)) scores.tech += 2;
+  if (/rental income|letting\b|lease income/.test(d)) scores.bouw += 1;
+  if (/supply|supplies|procurement|purchasing/.test(d)) { scores.handel += 1; scores.productie += 1; }
+
+  // ── ENGELSE NEGATIEVE SIGNALEN ──
+  if (/construction|building/.test(d) && /software|platform|app/.test(d)) scores.bouw -= 2;
+  if (/food|restaurant|hospitality/.test(d) && /software|platform|saas/.test(d)) scores.horeca -= 2;
+  if (/retail|trade/.test(d) && /software|platform/.test(d)) scores.handel -= 2;
+  if (/medical|health/.test(d) && /software|platform|app/.test(d)) scores.diensten -= 2;
+  if (/car|vehicle|auto/.test(d) && /rental|hire/.test(d)) { scores.bouw -= 1; scores.diensten += 2; }
+  if (/training|coaching|education/.test(d) && !/software|platform/.test(d)) scores.diensten += 2;
+
+  const sorted = Object.entries(scores).filter(([k])=>k!=='algemeen').sort((a,b)=>b[1]-a[1]);
+  const best = sorted[0];
+  const SECTOR_INFO = {
+    handel: { label: 'Groot- & detailhandel', why: 'Commerciële activiteit met aankoop/verkoop van goederen.' },
+    productie: { label: 'Productie & industrie', why: 'Vervaardigen of transformeren van fysieke producten.' },
+    diensten: { label: 'Dienstverlening', why: 'Levering van diensten zonder fysiek product.' },
+    bouw: { label: 'Bouw & vastgoed', why: 'Bouw-, renovatie- of vastgoedactiviteiten.' },
+    horeca: { label: 'Horeca', why: 'Voeding, drank of verblijf voor klanten.' },
+    tech: { label: 'Tech & IT', why: 'Software, technologie of digitale diensten.' },
+    algemeen: { label: 'Algemeen (NBB)', why: 'Gemiddelde van alle sectoren (NBB-data).' },
+  };
+
+  let html = '<div style="font-size:11px;font-weight:700;color:var(--accent);margin-bottom:10px;letter-spacing:.06em;text-transform:uppercase">Aanbeveling</div>';
+
+  sorted.slice(0, 3).forEach(([key, sc], i) => {
+    const info = SECTOR_INFO[key];
+    const isBest = i === 0 && sc > 1;
+    html += `<button class="sw-sector-btn${isBest?' best':''}" onclick="selectSector('${key}')">
+      <div class="sw-s-name">${isBest ? '★ ' : ''}${info.label}${isBest ? ' — meest waarschijnlijk' : ''}</div>
+      <div class="sw-s-why">${info.why}</div>
+    </button>`;
+  });
+
+  if (best[1] <= 1) {
+    html += `<button class="sw-sector-btn best" onclick="selectSector('algemeen')">
+      <div class="sw-s-name">★ Algemeen (NBB) — neutrale keuze</div>
+      <div class="sw-s-why">Beschrijving te vaag voor specifieke sector. Algemene benchmark aanbevolen.</div>
+    </button>`;
+  }
+
+  html += '<div style="font-size:10px;color:var(--muted);margin-top:10px">Klik op een sector om deze toe te passen.</div>';
+  resultEl.innerHTML = html;
+}
+
+function selectSector(key) {
+  document.getElementById('sector-select').value = key;
+  onSectorChange(key);
+  closeSectorWizard();
+  showToast('Sector ingesteld: ' + SECTORS[key].label);
+}
+
+// ══ VERGELIJKING ═══════════════════════════════════════════════════════════════
+let _dataB = null;
+
+document.getElementById('file-b').addEventListener('change', function(e) {
+  const file = e.target.files[0]; if (!file) return;
+  document.getElementById('file-b-name').textContent = file.name;
+  const reader = new FileReader();
+  reader.onload = function(evt) {
+    try {
+      const wb = XLSX.read(new Uint8Array(evt.target.result), {type:'array'});
+      const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {header:1});
+      const {v, jaar, entityName} = parseRows(rows);
+      const r = extractVars(v);
+      _dataB = { r, jaar, entityName, fname: file.name.replace(/\.[^.]+$/,'') };
+      const nameEl = document.getElementById('cmp-entity-b');
+      nameEl.textContent = entityName || file.name;
+      nameEl.style.display = 'block';
+      renderComparison();
+    } catch(err) { showToast('Fout bij vergelijkingsbestand: ' + err.message); }
+  };
+  reader.readAsArrayBuffer(file);
+});
+
+function renderComparison() {
+  if (!_ratioData || !_dataB) {
+    document.getElementById('cmp-placeholder').style.display = 'block';
+    document.getElementById('cmp-table-wrap').style.display = 'none';
+    return;
+  }
+  document.getElementById('cmp-placeholder').style.display = 'none';
+  document.getElementById('cmp-table-wrap').style.display = 'block';
+
+  const rA = _ratioData;
+  const rB = _dataB.r;
+
+  const entityA = document.getElementById('entity-name').textContent || 'Bestand A';
+  const jaarA   = document.getElementById('meta-jaar').textContent || '—';
+  const entityB = _dataB.entityName || _dataB.fname;
+  const jaarB   = _dataB.jaar || '—';
+
+  document.getElementById('cmp-label-a').textContent = entityA;
+  document.getElementById('cmp-sub-a').textContent = 'Referentie: ' + jaarA;
+  document.getElementById('cmp-label-b').textContent = entityB;
+  document.getElementById('cmp-sub-b').textContent = 'Referentie: ' + jaarB;
+
+  const valsA = computeValsFor(rA);
+  const valsB = computeValsFor(rB);
+
+  const groups = [
+    {
+      title: 'Absolute kerncijfers',
+      rows: [
+        { label: 'Omzet (70)', key: 'omzet', cls: 'eur', hb: true },
+        { label: 'Balanstotaal (20/58)', key: 'totActiva', cls: 'eur', hb: true },
+        { label: 'Eigen vermogen (10/15)', key: 'eigenV', cls: 'eur', hb: true },
+        { label: 'EBIT (9901)', key: 'ebit', cls: 'eur', hb: true },
+        { label: 'EBITDA', key: 'ebitda', cls: 'eur', hb: true },
+        { label: 'Nettowinst (9904)', key: 'nettowinst', cls: 'eur', hb: true },
+        { label: 'Totale schulden', key: 'totSchuld', cls: 'eur', hb: false },
+      ]
+    },
+    {
+      title: 'Liquiditeit',
+      rows: [
+        { label: 'Liquiditeit ruime zin', key: 'liqR', cls: null, hb: true },
+        { label: 'Liquiditeit enge zin', key: 'liqE', cls: null, hb: true },
+        { label: 'Nettobedrijfskapitaal', key: 'nwk', cls: 'eur', hb: true },
+        { label: 'Behoefte aan NBK', key: 'bnbk', cls: 'eur', hb: false },
+        { label: 'Nettokaspositie',              key: 'nkp',  cls: 'eur', hb: true },
+      ]
+    },
+    {
+      title: 'Solvabiliteit',
+      rows: [
+        { label: 'Solvabiliteit', key: 'solv', cls: 'pct', hb: true },
+        { label: 'Schuldratio', key: 'schuldratio', cls: 'pct', hb: false },
+      ]
+    },
+    {
+      title: 'Rendabiliteit',
+      rows: [
+        { label: 'Return on Equity (ROE)', key: 'roe', cls: 'pct', hb: true },
+      ]
+    },
+    {
+      title: 'Werkkapitaal & Rotatie',
+      rows: [
+        { label: 'Klantenkrediet (dagen)', key: 'kk', cls: 'days', hb: false },
+        { label: 'Leverancierskrediet (dagen)', key: 'lk', cls: 'days', hb: true },
+        { label: 'Omloopsnelheid voorraad', key: 'omloop', cls: 'x', hb: true },
+      ]
+    },
+  ];
+
+  let html = '';
+  groups.forEach(g => {
+    html += `<div class="cmp-group">
+      <div class="cmp-group-title">${g.title}</div>
+      <div class="cmp-row cmp-row-header">
+        <div class="cmp-cell hdr">Indicator</div>
+        <div class="cmp-cell hdr">${entityA.slice(0,18)}</div>
+        <div class="cmp-cell hdr">${entityB.slice(0,18)}</div>
+        <div class="cmp-cell hdr">Evolutie</div>
+      </div>`;
+    g.rows.forEach(row => {
+      const a = valsA[row.key], b = valsB[row.key];
+      const aFmt = fmtValCmp(a, row.cls);
+      const bFmt = fmtValCmp(b, row.cls);
+      const deltaHtml = buildDelta(a, b, row.hb, row.cls);
+      html += `<div class="cmp-row">
+        <div class="cmp-cell label">${row.label}</div>
+        <div class="cmp-cell">${aFmt}</div>
+        <div class="cmp-cell">${bFmt}</div>
+        <div class="cmp-cell">${deltaHtml}</div>
+      </div>`;
+    });
+    html += '</div>';
+  });
+
+  document.getElementById('cmp-grid').innerHTML = html;
+}
+
+function computeValsFor(r) {
+  const S = SECTORS[currentSector];
+  const schKTtot = r.schKT + r.overlopP;
+  const knoemer = r.omzet + r.c74 - r.c740 + r.c9146;
+  const lnoemer = r.c600 + r.c61 + r.c9145;
+  const vorrHand = r.c34 + r.c3031 + r.c36 + r.c35;
+  const nwk = r.vlottendeKT - r.schKT;
+  const bnbk = (r.voorraden + r.vorderKT + r.overlopA) - r.schKTExclFin;
+  return {
+    omzet: r.omzet, totActiva: r.totActiva, eigenV: r.eigenV, ebit: r.ebit,
+    ebitda: r.ebitda, nettowinst: r.nettowinst, totSchuld: r.totSchuld,
+    liqR: schKTtot !== 0 ? (r.voorraden + r.vorderKT + r.geldbel + r.liquide + r.overlopA) / schKTtot : NaN,
+    liqE: r.schKT !== 0 ? (r.vorderKT + r.geldbel + r.liquide) / r.schKT : NaN,
+    nwk, bnbk, nkp: nwk - bnbk,
+    solv: r.totPassiva !== 0 ? r.eigenV / r.totPassiva * 100 : NaN,
+    schuldratio: r.totActiva !== 0 ? r.totSchuld / r.totActiva * 100 : NaN,
+    roe: r.eigenV !== 0 ? r.nettowinst / r.eigenV * 100 : NaN,
+    kk: knoemer !== 0 ? r.c40 / knoemer * 365 : NaN,
+    lk: lnoemer !== 0 ? r.handschuld / lnoemer * 365 : NaN,
+    omloop: vorrHand !== 0 ? r.c60 / vorrHand : NaN,
+  };
+}
+
+function fmtValCmp(v, cls) {
+  if (!isFinite(v) || isNaN(v)) return '<span style="color:var(--muted)">N/B</span>';
+  switch(cls) {
+    case 'pct': return v.toFixed(1) + '%';
+    case 'eur': return fmtEur(v);
+    case 'days': return Math.round(v) + 'd';
+    case 'x': return v.toFixed(1) + '×';
+    default: return v.toFixed(2);
+  }
+}
+
+function buildDelta(a, b, higherBetter, cls) {
+  if (!isFinite(a) || isNaN(a) || !isFinite(b) || isNaN(b)) return '<span style="color:var(--muted)">—</span>';
+  const diff = b - a;
+  const pct = a !== 0 ? (diff / Math.abs(a) * 100) : null;
+  const isPositive = higherBetter ? diff > 0 : diff < 0;
+  const isNeutral = Math.abs(diff) < 0.0001;
+  const cls2 = isNeutral ? 'delta-neu' : isPositive ? 'delta-up' : 'delta-dn';
+  const arrow = isNeutral ? '→' : isPositive ? '↑' : '↓';
+  const pctStr = pct !== null ? (Math.abs(pct) < 1000 ? ' (' + (diff>0?'+':'') + pct.toFixed(1) + '%)' : '') : '';
+  return `<div class="cmp-delta ${cls2}"><span class="delta-arrow">${arrow}</span><span>${fmtValCmp(Math.abs(diff), cls)}${pctStr}</span></div>`;
+}
+
+// ══ END ══
 </script>
 </body>
 </html>
